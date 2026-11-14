@@ -1,0 +1,22 @@
+{
+  "waitingGraceSeconds": 180,
+  "waitingTitles": [
+    "YouTube",
+    "Reddit",
+    "Twitter",
+    "/ X$",
+    "Facebook",
+    "Instagram",
+    "TikTok",
+    "Hacker News",
+    "LinkedIn"
+  ],
+  "rules": [
+    { "process": "^claude\\.exe$", "project": "Claude", "category": "Deep" },
+    { "title": "Claude", "project": "Claude", "category": "Deep" },
+    { "process": "^(Code|devenv|rider64|idea64)\\.exe$", "project": "Dev", "category": "Deep" },
+    { "process": "^(WindowsTerminal|powershell|pwsh|cmd)\\.exe$", "project": "Dev", "category": "Support" },
+    { "process": "^(chrome|msedge|firefox)\\.exe$", "title": "GitHub|Stack Overflow|docs", "project": "Dev", "category": "Support" },
+    { "process": "^(slack|Discord|ms-teams|OUTLOOK)\\.exe$", "project": "Comms", "category": "Support" }
+  ]
+}
