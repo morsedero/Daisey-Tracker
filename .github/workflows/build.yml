@@ -4,7 +4,7 @@ on:
     branches: [main, "claude/**"]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: windows-latest
@@ -13,6 +13,11 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with: { dotnet-version: "8.0.x" }
       - name: Publish single-file exe (no .NET install needed to run)
-        run: dotnet publish src/DaiseyTracker/DaiseyTracker.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o out
+        run: dotnet publish src/DaiseyTracker/DaiseyTracker.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:Version=1.0.${{ github.run_number }} -o out
       - uses: actions/upload-artifact@v4
         with: { name: DaiseyTracker, path: out/DaiseyTracker.exe }
+      - name: Release (the app auto-updates from the latest release)
+        if: github.event_name == 'push'
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: gh release create "v1.0.${{ github.run_number }}" out/DaiseyTracker.exe --target "$GITHUB_SHA" --title "v1.0.${{ github.run_number }}" --notes "Automatic build."

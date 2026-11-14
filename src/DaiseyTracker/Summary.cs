@@ -16,7 +16,19 @@ static class Summary
         var obj = Compute(store, day);
         Directory.CreateDirectory(Paths.SummaryDir);
         var path = Path.Combine(Paths.SummaryDir, $"{day:yyyy-MM-dd}.json");
-        File.WriteAllText(path, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
+        var json = JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(path, json);
+
+        // Mirror to the synced cloud folder so the claude.ai dashboard can read it.
+        if (Paths.SyncDir() is { } sync)
+        {
+            try
+            {
+                Directory.CreateDirectory(sync);
+                File.WriteAllText(Path.Combine(sync, $"daisey-{day:yyyy-MM-dd}.json"), json);
+            }
+            catch (Exception ex) { Paths.LogError("sync", ex); }
+        }
         return path;
     }
 

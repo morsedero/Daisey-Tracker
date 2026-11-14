@@ -4,9 +4,13 @@ Windows tray app (C#, .NET 8, WinForms). Tracks active window, AFK and audio loc
 
 ## Easy way (no install)
 
-Every push builds `DaiseyTracker.exe` on GitHub (self-contained, no .NET needed).
-Open the repo's **Actions** tab > latest run > **Artifacts** > DaiseyTracker, unzip, double-click.
-Dashboard opens in your browser at `http://localhost:5757`. Double-click the tray icon to reopen it.
+1. Download `DaiseyTracker.exe` once from the repo's **Releases** (latest). Self-contained, no .NET needed.
+2. Put it somewhere stable (e.g. `C:\Tools\DaiseyTracker\`), double-click. Tick **Start with Windows** in the tray menu.
+3. It **auto-updates**: checks GitHub releases a minute after start and every 6 hours, swaps itself and restarts. Tray: *Check for updates*.
+4. Install **Google Drive for desktop**. The app finds `X:\My Drive` and mirrors summaries to `My Drive\DaiseyTracker\daisey-YYYY-MM-DD.json` every 15 min. Other sync folder: put its path in `%LOCALAPPDATA%\DaiseyTracker\sync-folder.txt`.
+5. Open the claude.ai dashboard artifact. It reads those files from your Drive (allow the Google Drive connector once).
+
+Local dashboard also at `http://localhost:5757` (double-click the tray icon).
 Windows SmartScreen may warn (unsigned exe): More info > Run anyway.
 
 ## Build / run from source
@@ -25,7 +29,8 @@ dotnet publish -c Release -r win-x64 --self-contained false -o publish
 ```
 
 Run `publish\DaiseyTracker.exe`. Tray icon appears. Menu: Open dashboard, Pause/Resume, Export today,
-Open data folder, Start with Windows, Quit.
+Open data folder, Start with Windows, Check for updates, Quit.
+Local builds are version 0.0.0 and never self-update.
 
 Packages: Microsoft.Data.Sqlite, NAudio. Nothing else.
 

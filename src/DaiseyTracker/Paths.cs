@@ -21,6 +21,31 @@ static class Paths
         res.CopyTo(fs);
     }
 
+    /// <summary>
+    /// Cloud-synced folder for summaries (read by the claude.ai dashboard), or null.
+    /// Override: put a folder path in sync-folder.txt in the data folder.
+    /// Default: Google Drive for desktop's "X:\My Drive\DaiseyTracker".
+    /// </summary>
+    public static string? SyncDir()
+    {
+        try
+        {
+            var over = Path.Combine(Data, "sync-folder.txt");
+            if (File.Exists(over))
+            {
+                var p = File.ReadAllText(over).Trim();
+                if (p.Length > 0) return p;
+            }
+            foreach (var d in DriveInfo.GetDrives())
+            {
+                var myDrive = Path.Combine(d.Name, "My Drive");
+                if (Directory.Exists(myDrive)) return Path.Combine(myDrive, "DaiseyTracker");
+            }
+        }
+        catch { }
+        return null;
+    }
+
     public static void LogError(string what, Exception ex)
     {
         try { File.AppendAllText(ErrorLog, $"{DateTime.Now:s} {what}: {ex}\n"); } catch { }
