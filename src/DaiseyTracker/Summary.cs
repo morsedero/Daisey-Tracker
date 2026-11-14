@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace DaiseyTracker;
 
-/// <summary>Builds summary/YYYY-MM-DD.json from stored events. No raw titles in output.</summary>
+/// <summary>Builds summary/YYYY-MM-DD.json: active minutes per app and per hour, plus audio. No window titles.</summary>
 static class Summary
 {
     public const string AfkData = "{\"status\":\"afk\"}";
@@ -13,10 +13,9 @@ static class Summary
     public static string Write(Store store, DateTime day)
     {
         day = day.Date;
-        var obj = Compute(store, day);
+        var json = JsonSerializer.Serialize(Compute(store, day), new JsonSerializerOptions { WriteIndented = true });
         Directory.CreateDirectory(Paths.SummaryDir);
         var path = Path.Combine(Paths.SummaryDir, $"{day:yyyy-MM-dd}.json");
-        var json = JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(path, json);
 
         // Mirror to the synced cloud folder so the claude.ai dashboard can read it.
@@ -32,70 +31,38 @@ static class Summary
         return path;
     }
 
-    public static object Compute(Store store, DateTime day) =>
-        Build(store, RuleSet.Load(Paths.Rules), day.Date);
-
-    static object Build(Store store, RuleSet rules, DateTime day)
+    public static object Compute(Store store, DateTime day)
     {
+        day = day.Date;
         long start = Ms(day), end = Ms(day.AddDays(1)); // local midnight to local midnight
-        long graceMs = rules.GraceSeconds * 1000L;
 
-        var projects = new Dictionary<string, double>();
-        var cats = RuleSet.Categories.ToDictionary(c => c, _ => 0.0);
+        var apps = new Dictionary<string, double>();
+        var hourly = new double[24];
         var audio = new Dictionary<string, double>();
-        var unmatched = new Dictionary<string, double>(); // process name -> minutes no rule matched
-
-        void Emit(long s, long e, string project, string cat, string? unmatchedApp = null)
-        {
-            s = Math.Max(s, start); e = Math.Min(e, end);
-            if (e <= s) return;
-            var min = (e - s) / 60000.0;
-            projects[project] = projects.GetValueOrDefault(project) + min;
-            cats[cat] += min;
-            if (unmatchedApp is not null) unmatched[unmatchedApp] = unmatched.GetValueOrDefault(unmatchedApp) + min;
-        }
 
         // AFK intervals (backdated to last input by the tracker) are cut out of window time.
-        var afk = store.Query("afk", start - graceMs, end)
+        var afk = store.Query("afk", start, end)
             .Where(e => e.Data == AfkData).Select(e => (S: e.Ts, E: e.End)).ToList();
 
-        // Window events; start a bit early so "Claude last active" carries over midnight.
-        long? claudeEnd = null;
-        foreach (var ev in store.Query("window", start - graceMs, end))
+        foreach (var ev in store.Query("window", start, end))
         {
-            var (app, title) = ReadWindow(ev.Data);
-            bool claude = RuleSet.IsClaude(app, title);
-            bool waitTitle = rules.IsWaitingTitle(title);
-
-            foreach (var seg in Subtract((ev.Ts, ev.End), afk))
+            var app = ReadString(ev.Data, "app");
+            foreach (var seg in Subtract((Math.Max(ev.Ts, start), Math.Min(ev.End, end)), afk))
             {
-                long s = seg.S, e = seg.E;
-                if (claude)
+                if (seg.E <= seg.S) continue;
+                apps[app] = apps.GetValueOrDefault(app) + (seg.E - seg.S) / 60000.0;
+                // Spread over local hours.
+                for (long t = seg.S; t < seg.E;)
                 {
-                    var (p, c, m) = rules.Classify(app, title);
-                    Emit(s, e, p, c, m ? null : app);
-                    claudeEnd = e;
-                    continue;
-                }
-                if (waitTitle && claudeEnd is long ce)
-                {
-                    // Waiting only within grace period after Claude was last active.
-                    long we = Math.Min(e, ce + graceMs);
-                    if (we > s)
-                    {
-                        Emit(s, we, RuleSet.WaitingProject, "Waiting");
-                        s = we;
-                    }
-                }
-                if (e > s)
-                {
-                    var (p, c, m) = rules.Classify(app, title);
-                    Emit(s, e, p, c, m ? null : app);
+                    int h = (int)Math.Clamp((t - start) / 3_600_000, 0, 23);
+                    long hourEnd = h == 23 ? seg.E : Math.Min(seg.E, start + (h + 1) * 3_600_000L);
+                    hourly[h] += (hourEnd - t) / 60000.0;
+                    t = hourEnd;
                 }
             }
         }
 
-        // Audio: separate stream, never added to project/category time.
+        // Audio: separate stream, not part of active time.
         foreach (var ev in store.Query("audio", start, end))
         {
             long s = Math.Max(ev.Ts, start), e = Math.Min(ev.End, end);
@@ -110,10 +77,10 @@ static class Summary
         return new
         {
             date = day.ToString("yyyy-MM-dd"),
-            projectMinutes = Sorted(projects),
-            categoryMinutes = Sorted(cats),
+            activeMinutes = Math.Round(apps.Values.Sum(), 2),
+            appMinutes = Sorted(apps),
+            hourlyMinutes = hourly.Select(v => Math.Round(v, 1)).ToArray(),
             audioMinutesByProcess = Sorted(audio),
-            uncategorizedMinutesByProcess = Sorted(unmatched),
         };
     }
 
@@ -133,9 +100,6 @@ static class Summary
         }
         return pieces;
     }
-
-    static (string App, string Title) ReadWindow(string json) =>
-        (ReadString(json, "app"), ReadString(json, "title"));
 
     static string ReadString(string json, string key)
     {

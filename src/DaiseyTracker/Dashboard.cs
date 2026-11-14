@@ -91,9 +91,8 @@ button{background:var(--card);color:var(--fg);border:0;border-radius:8px;padding
 <h1>Daisey Tracker</h1>
 <div class="nav"><button id="prev">&larr;</button><b id="date"></b><button id="next">&rarr;</button><button id="today">Today</button></div>
 <div class="big" id="total"></div>
-<h2>Category</h2><div id="cat"></div>
-<h2>Project</h2><div id="proj"></div>
-<h2>Audio (separate, not in totals)</h2><div id="aud"></div>
+<h2>Apps</h2><div id="apps"></div>
+<h2>Audio playing</h2><div id="aud"></div>
 <script>
 let day=new Date();
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -105,8 +104,8 @@ function bars(id,obj){
 async function load(){
   document.getElementById('date').textContent=iso(day);
   const s=await (await fetch('/api/summary?date='+iso(day))).json();
-  document.getElementById('total').textContent=fmt(Object.values(s.categoryMinutes).reduce((a,b)=>a+b,0))+' tracked';
-  bars('cat',s.categoryMinutes);bars('proj',s.projectMinutes);bars('aud',s.audioMinutesByProcess);
+  document.getElementById('total').textContent=fmt(s.activeMinutes)+' active';
+  bars('apps',s.appMinutes);bars('aud',s.audioMinutesByProcess);
 }
 const go=n=>{day.setDate(day.getDate()+n);load()};
 prev.onclick=()=>go(-1);next.onclick=()=>go(1);today.onclick=()=>{day=new Date();load()};

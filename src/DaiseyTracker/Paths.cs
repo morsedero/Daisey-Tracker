@@ -5,20 +5,14 @@ static class Paths
     public static readonly string Data = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DaiseyTracker");
     public static readonly string Db = Path.Combine(Data, "events.db");
-    public static readonly string Rules = Path.Combine(Data, "rules.json");
     public static readonly string SummaryDir = Path.Combine(Data, "summary");
     public static readonly string ErrorLog = Path.Combine(Data, "error.log");
 
-    /// <summary>Create data folder; copy default rules.json beside the exe on first run.</summary>
+    /// <summary>Create data folders.</summary>
     public static void Init()
     {
         Directory.CreateDirectory(Data);
         Directory.CreateDirectory(SummaryDir);
-        if (File.Exists(Rules)) return;
-        // Default rules.json is embedded in the exe.
-        using var res = typeof(Paths).Assembly.GetManifestResourceStream("rules.json")!;
-        using var fs = File.Create(Rules);
-        res.CopyTo(fs);
     }
 
     /// <summary>
