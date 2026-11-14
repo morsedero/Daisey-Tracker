@@ -70,7 +70,7 @@ static class Native
         new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Exe path via limited query rights: works for Store apps and most elevated processes.</summary>
-    static string? ImagePath(uint pid)
+    public static string? ImagePath(uint pid)
     {
         var h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
         if (h == IntPtr.Zero) return null;
