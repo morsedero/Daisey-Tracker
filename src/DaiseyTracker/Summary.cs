@@ -49,6 +49,7 @@ static class Summary
         var apps = new Dictionary<string, double>();
         var hourly = new double[24];
         var sites = new Dictionary<string, double>(); // browser time by site guessed from tab title
+        var details = new Dictionary<string, Dictionary<string, double>>(); // app -> project/file -> minutes
         var audio = new Dictionary<string, double>();
 
         // AFK intervals (backdated to last input by the tracker) are cut out of window time.
@@ -58,12 +59,19 @@ static class Summary
         foreach (var ev in store.Query("window", start, end))
         {
             var app = ReadString(ev.Data, "app");
-            var site = Sites.IsBrowser(app) ? Sites.FromTitle(ReadString(ev.Data, "title")) : null;
+            var title = ReadString(ev.Data, "title");
+            var site = Sites.IsBrowser(app) ? Sites.FromTitle(title) : null;
+            var detail = Details.FromTitle(app, title);
             foreach (var seg in Subtract((Math.Max(ev.Ts, start), Math.Min(ev.End, end)), afk))
             {
                 if (seg.E <= seg.S) continue;
                 apps[app] = apps.GetValueOrDefault(app) + (seg.E - seg.S) / 60000.0;
                 if (site is not null) sites[site] = sites.GetValueOrDefault(site) + (seg.E - seg.S) / 60000.0;
+                if (detail is not null)
+                {
+                    if (!details.TryGetValue(app, out var dm)) details[app] = dm = new();
+                    dm[detail] = dm.GetValueOrDefault(detail) + (seg.E - seg.S) / 60000.0;
+                }
                 // Spread over local hours.
                 for (long t = seg.S; t < seg.E;)
                 {
@@ -93,6 +101,10 @@ static class Summary
             activeMinutes = Math.Round(apps.Values.Sum(), 2),
             appMinutes = Sorted(apps),
             siteMinutes = Sorted(sites),
+            // Top 6 projects/files per app (names only, guessed from window titles).
+            detailMinutes = details.ToDictionary(kv => kv.Key,
+                kv => kv.Value.Where(x => x.Value >= 0.5).OrderByDescending(x => x.Value).Take(6)
+                        .ToDictionary(x => x.Key, x => Math.Round(x.Value, 2))),
             hourlyMinutes = hourly.Select(v => Math.Round(v, 1)).ToArray(),
             audioMinutesByProcess = Sorted(audio),
         };
