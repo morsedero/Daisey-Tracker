@@ -53,8 +53,8 @@ sealed class TrayApp : ApplicationContext
                 WriteSummary(_day, quiet: true);
                 _day = DateTime.Today;
             }
-            // Keep the cloud dashboard fresh: export today every 2 min.
-            if (DateTime.Now - _lastExport >= TimeSpan.FromMinutes(2))
+            // Keep the cloud dashboard fresh: export today every 1 min.
+            if (DateTime.Now - _lastExport >= TimeSpan.FromMinutes(1))
             {
                 _lastExport = DateTime.Now;
                 WriteSummary(DateTime.Today, quiet: true);

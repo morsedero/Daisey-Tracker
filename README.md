@@ -7,7 +7,7 @@ Windows tray app (C#, .NET 8, WinForms). Tracks which apps you use, when you're 
 1. Download `DaiseyTracker.exe` from **Releases > latest**. Self-contained, no .NET needed.
 2. Put it in a fixed folder (e.g. `C:\Tools\DaiseyTracker\`), double-click. Tray menu: tick **Start with Windows**.
    Don't move the exe while it runs.
-3. Install **Google Drive for desktop**. Summaries go to `My Drive\DaiseyTracker\daisey-YYYY-MM-DD.json` every 2 min.
+3. Install **Google Drive for desktop**. Summaries go to `My Drive\DaiseyTracker\daisey-YYYY-MM-DD.json` every 1 min.
 4. Open the claude.ai dashboard artifact (reads those files from your Drive).
 
 It auto-updates from GitHub releases (a minute after start, then every 6 h; tray: *Check for updates*).
@@ -26,7 +26,7 @@ Heartbeat merge: same data as the stream's last event and gap <= 3s extends it, 
 
 ## Daily summary
 
-`summary\YYYY-MM-DD.json` in the data folder (copied to Drive). Written every 2 min, at midnight, on quit and via *Export today*. No window titles.
+`summary\YYYY-MM-DD.json` in the data folder (copied to Drive). Written every 1 min, at midnight, on quit and via *Export today*. No window titles.
 
 ```json
 {
