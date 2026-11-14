@@ -11,6 +11,10 @@ static class Native
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
     [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
+    [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool QueryFullProcessImageName(IntPtr h, int flags, StringBuilder name, ref int size);
+    const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
     delegate bool EnumProc(IntPtr h, IntPtr l);
     [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr parent, EnumProc cb, IntPtr l);
 
@@ -65,14 +69,27 @@ static class Native
     public static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> ExePaths =
         new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Exe path via limited query rights: works for Store apps and most elevated processes.</summary>
+    static string? ImagePath(uint pid)
+    {
+        var h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        if (h == IntPtr.Zero) return null;
+        try
+        {
+            var sb = new StringBuilder(1024);
+            int size = sb.Capacity;
+            return QueryFullProcessImageName(h, 0, sb, ref size) ? sb.ToString() : null;
+        }
+        finally { CloseHandle(h); }
+    }
+
     public static string ProcessName(uint pid)
     {
         try
         {
             using var p = Process.GetProcessById((int)pid);
             var name = p.ProcessName + ".exe";
-            if (!ExePaths.ContainsKey(name))
-                try { if (p.MainModule?.FileName is { } f) ExePaths[name] = f; } catch { /* elevated or 32-bit: no icon */ }
+            if (!ExePaths.ContainsKey(name) && ImagePath(pid) is { } f) ExePaths[name] = f;
             return name;
         }
         catch { return "unknown"; }
