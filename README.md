@@ -10,7 +10,7 @@ Windows tray app (C#, .NET 8, WinForms). Tracks which apps you use, when you're 
 3. Install **Google Drive for desktop**. Summaries go to `My Drive\DaiseyTracker\daisey-YYYY-MM-DD.json` every 1 min.
 4. Open the claude.ai dashboard artifact (reads those files from your Drive).
 
-It auto-updates from GitHub releases (a minute after start, then every 15 min; tray: *Check for updates*).
+It auto-updates from GitHub releases (a minute after start, then every minute; tray: *Check for updates*).
 Local dashboard: `http://localhost:5757` (double-click the tray icon).
 SmartScreen may warn (unsigned exe): More info > Run anyway.
 

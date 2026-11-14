@@ -30,9 +30,18 @@ static class Updater
         using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
         http.DefaultRequestHeaders.UserAgent.ParseAdd("DaiseyTracker-Updater");
 
-        using var doc = JsonDocument.Parse(await http.GetStringAsync(Api));
+        // Conditional request: "304 Not Modified" doesn't count against GitHub's rate limit, so polling every minute is fine.
+        using var req = new HttpRequestMessage(HttpMethod.Get, Api);
+        if (_etag is not null) req.Headers.TryAddWithoutValidation("If-None-Match", _etag);
+        using var resp = await http.SendAsync(req);
+        if (resp.StatusCode == System.Net.HttpStatusCode.NotModified) return false;
+        resp.EnsureSuccessStatusCode();
+        var body = await resp.Content.ReadAsStringAsync();
+        var etag = resp.Headers.ETag?.Tag;
+
+        using var doc = JsonDocument.Parse(body);
         var tag = doc.RootElement.GetProperty("tag_name").GetString()?.TrimStart('v') ?? "";
-        if (!Version.TryParse(tag, out var latest) || latest <= Current) return false;
+        if (!Version.TryParse(tag, out var latest) || latest <= Current) { _etag = etag; return false; }
 
         string? url = null;
         foreach (var a in doc.RootElement.GetProperty("assets").EnumerateArray())
@@ -71,6 +80,7 @@ static class Updater
     }
 
     static string? _script;
+    static string? _etag; // last "no newer version" response
 
     public sealed class MovedException() : Exception("The app was moved or deleted while running. Quit it and start it again from its new folder.");
 

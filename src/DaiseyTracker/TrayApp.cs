@@ -12,7 +12,7 @@ sealed class TrayApp : ApplicationContext
     readonly ToolStripMenuItem _pause = new("Pause");
     readonly ToolStripMenuItem _auto = new("Start with Windows");
     readonly Timer _midnight = new() { Interval = 30_000 };
-    readonly Timer _update = new() { Interval = 15 * 60 * 1000 };
+    readonly Timer _update = new() { Interval = 60_000 };
     DateTime _day = DateTime.Today;
     DateTime _lastExport = DateTime.MinValue; // export soon after start
     bool _updating;
@@ -62,8 +62,8 @@ sealed class TrayApp : ApplicationContext
         };
         _midnight.Start();
 
-        // Auto-update: first check a minute after start, then every 15 minutes.
-        _update.Tick += async (_, _) => { _update.Interval = 15 * 60 * 1000; await CheckUpdate(manual: false); };
+        // Auto-update: check every minute (cheap conditional request).
+        _update.Tick += async (_, _) => { _update.Interval = 60_000; await CheckUpdate(manual: false); };
         _update.Interval = 60_000;
         _update.Start();
 
