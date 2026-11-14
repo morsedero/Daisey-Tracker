@@ -11,6 +11,8 @@ static class Native
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
     [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
+    delegate bool EnumProc(IntPtr h, IntPtr l);
+    [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr parent, EnumProc cb, IntPtr l);
 
     [StructLayout(LayoutKind.Sequential)]
     struct LASTINPUTINFO { public uint cbSize; public uint dwTime; }
@@ -36,12 +38,27 @@ static class Native
         GetWindowText(h, sb, sb.Capacity);
 
         GetWindowThreadProcessId(h, out var pid);
+        pid = RealUwpPid(h, pid);
         if (pid != _pid)
         {
             _pid = pid;
             _name = ProcessName(pid);
         }
         return (_name, sb.ToString());
+    }
+
+    /// <summary>Store apps run inside ApplicationFrameHost; the real app owns a child window (as in aw-watcher-window).</summary>
+    static uint RealUwpPid(IntPtr h, uint pid)
+    {
+        if (!ProcessName(pid).Equals("ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase)) return pid;
+        uint found = pid;
+        EnumChildWindows(h, (c, _) =>
+        {
+            GetWindowThreadProcessId(c, out var cp);
+            if (cp != pid) { found = cp; return false; }
+            return true;
+        }, IntPtr.Zero);
+        return found;
     }
 
     public static string ProcessName(uint pid)
