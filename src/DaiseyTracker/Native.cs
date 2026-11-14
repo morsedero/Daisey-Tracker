@@ -61,12 +61,19 @@ static class Native
         return found;
     }
 
+    /// <summary>Process name -> exe path, remembered for app icons.</summary>
+    public static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> ExePaths =
+        new(StringComparer.OrdinalIgnoreCase);
+
     public static string ProcessName(uint pid)
     {
         try
         {
             using var p = Process.GetProcessById((int)pid);
-            return p.ProcessName + ".exe";
+            var name = p.ProcessName + ".exe";
+            if (!ExePaths.ContainsKey(name))
+                try { if (p.MainModule?.FileName is { } f) ExePaths[name] = f; } catch { /* elevated or 32-bit: no icon */ }
+            return name;
         }
         catch { return "unknown"; }
     }

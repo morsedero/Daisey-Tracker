@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace DaiseyTracker;
 
@@ -13,7 +14,16 @@ static class Summary
     public static string Write(Store store, DateTime day)
     {
         day = day.Date;
-        var json = JsonSerializer.Serialize(Compute(store, day), new JsonSerializerOptions { WriteIndented = true });
+        var node = JsonSerializer.SerializeToNode(Compute(store, day))!.AsObject();
+
+        // Icons for the apps listed (exe icons, not window content).
+        var icons = new JsonObject();
+        foreach (var key in new[] { "appMinutes", "audioMinutesByProcess" })
+            foreach (var (app, _) in node[key]!.AsObject())
+                if (!icons.ContainsKey(app) && Icons.DataUri(app) is { } uri) icons[app] = uri;
+        node["icons"] = icons;
+
+        var json = node.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
         Directory.CreateDirectory(Paths.SummaryDir);
         var path = Path.Combine(Paths.SummaryDir, $"{day:yyyy-MM-dd}.json");
         File.WriteAllText(path, json);
