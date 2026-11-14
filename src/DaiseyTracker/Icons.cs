@@ -12,7 +12,7 @@ namespace DaiseyTracker;
 /// </summary>
 static class Icons
 {
-    static readonly string File_ = Path.Combine(Paths.Data, "icons.json");
+    static readonly string File_ = Path.Combine(Paths.Data, "icons-64.json"); // v2: 64px icons
     static readonly ConcurrentDictionary<string, string> Cache = Load();
     static readonly ConcurrentDictionary<string, DateTime> Missed = new(StringComparer.OrdinalIgnoreCase);
 
@@ -58,7 +58,8 @@ static class Icons
 
     static string? ExeIcon(string path)
     {
-        using var ico = Icon.ExtractAssociatedIcon(path);
+        // Large (64px) version of the exe's own icon; fall back to the 32px associated icon.
+        using var ico = Icon.ExtractIcon(path, 0, 64) ?? Icon.ExtractAssociatedIcon(path);
         if (ico is null) return null;
         using var bmp = ico.ToBitmap();
         using var ms = new MemoryStream();
@@ -85,9 +86,10 @@ static class Icons
             var stem = Path.GetFileNameWithoutExtension(baseFile);
             if (!Directory.Exists(folder)) return null;
 
-            // Variants: Name.scale-200.png, Name.targetsize-48.png, ... Prefer ~48px, then scale-200, then any.
+            // Variants: Name.scale-200.png, Name.targetsize-48.png, ... Prefer 64px, then 48px, then scale-200, then any.
             var files = Directory.GetFiles(folder, stem + "*.png");
-            var best = files.FirstOrDefault(f => f.Contains("targetsize-48", StringComparison.OrdinalIgnoreCase) && !f.Contains("contrast", StringComparison.OrdinalIgnoreCase))
+            var best = files.FirstOrDefault(f => f.Contains("targetsize-64", StringComparison.OrdinalIgnoreCase) && !f.Contains("contrast", StringComparison.OrdinalIgnoreCase) && !f.Contains("unplated", StringComparison.OrdinalIgnoreCase))
+                    ?? files.FirstOrDefault(f => f.Contains("targetsize-48", StringComparison.OrdinalIgnoreCase) && !f.Contains("contrast", StringComparison.OrdinalIgnoreCase))
                     ?? files.FirstOrDefault(f => f.Contains("scale-200", StringComparison.OrdinalIgnoreCase) && !f.Contains("contrast", StringComparison.OrdinalIgnoreCase))
                     ?? files.FirstOrDefault(f => !f.Contains("contrast", StringComparison.OrdinalIgnoreCase))
                     ?? (File.Exists(baseFile) ? baseFile : null);
