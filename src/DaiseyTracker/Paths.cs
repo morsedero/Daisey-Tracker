@@ -36,11 +36,18 @@ static class Paths
                 var p = File.ReadAllText(over).Trim();
                 if (p.Length > 0) return p;
             }
-            foreach (var d in DriveInfo.GetDrives())
-            {
-                var myDrive = Path.Combine(d.Name, "My Drive");
-                if (Directory.Exists(myDrive)) return Path.Combine(myDrive, "DaiseyTracker");
-            }
+            // Exe itself inside a synced Drive folder? Use that Drive.
+            var exe = Environment.ProcessPath ?? "";
+            var i = exe.IndexOf(@"\My Drive\", StringComparison.OrdinalIgnoreCase);
+            if (i >= 0) return Path.Combine(exe[..(i + 9)], "DaiseyTracker");
+
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var candidates = DriveInfo.GetDrives().Select(d => Path.Combine(d.Name, "My Drive")).ToList(); // stream mode: G:\My Drive
+            candidates.Add(Path.Combine(home, "My Drive"));                    // mirror mode
+            candidates.Add(Path.Combine(home, "Google Drive", "My Drive"));
+            candidates.Add(Path.Combine(home, "Google Drive"));                // old Backup and Sync
+            foreach (var c in candidates)
+                if (Directory.Exists(c)) return Path.Combine(c, "DaiseyTracker");
         }
         catch { }
         return null;

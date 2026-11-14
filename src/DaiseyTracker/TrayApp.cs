@@ -14,7 +14,7 @@ sealed class TrayApp : ApplicationContext
     readonly Timer _midnight = new() { Interval = 30_000 };
     readonly Timer _update = new() { Interval = 6 * 3600 * 1000 };
     DateTime _day = DateTime.Today;
-    DateTime _lastExport = DateTime.Now;
+    DateTime _lastExport = DateTime.MinValue; // export soon after start
     bool _updating;
     bool _closed;
 
