@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing.Imaging;
 using System.Text.Json;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 namespace DaiseyTracker;
@@ -12,7 +13,7 @@ namespace DaiseyTracker;
 /// </summary>
 static class Icons
 {
-    static readonly string File_ = Path.Combine(Paths.Data, "icons-64.json"); // v2: 64px icons
+    static readonly string File_ = Path.Combine(Paths.Data, "icons-v3.json"); // v3: 64px, no generic icons
     static readonly ConcurrentDictionary<string, string> Cache = Load();
     static readonly ConcurrentDictionary<string, DateTime> Missed = new(StringComparer.OrdinalIgnoreCase);
 
@@ -56,8 +57,14 @@ static class Icons
         return null;
     }
 
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    static extern uint ExtractIconEx(string file, int index, IntPtr[]? large, IntPtr[]? small, uint count);
+
     static string? ExeIcon(string path)
     {
+        // No icon of its own: Windows would hand back its generic window icon. Return null so the name is shown.
+        if (ExtractIconEx(path, -1, null, null, 0) == 0) return null;
+
         // Large (64px) version of the exe's own icon; fall back to the 32px associated icon.
         using var ico = Icon.ExtractIcon(path, 0, 64) ?? Icon.ExtractAssociatedIcon(path);
         if (ico is null) return null;

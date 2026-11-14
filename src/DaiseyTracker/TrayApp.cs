@@ -41,7 +41,7 @@ sealed class TrayApp : ApplicationContext
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => Quit());
 
-        _tray = new NotifyIcon { Icon = SystemIcons.Application, Text = Title, ContextMenuStrip = menu, Visible = true };
+        _tray = new NotifyIcon { Icon = AppIcon, Text = Title, ContextMenuStrip = menu, Visible = true };
 
         _tray.DoubleClick += (_, _) => _dash.Open();
 
@@ -97,11 +97,13 @@ sealed class TrayApp : ApplicationContext
         finally { _updating = false; }
     }
 
+    static readonly Icon AppIcon = (Environment.ProcessPath is { } p ? Icon.ExtractAssociatedIcon(p) : null) ?? SystemIcons.Application;
+
     void TogglePause()
     {
         if (_tracker.Paused) _tracker.Resume(); else _tracker.Pause();
         _pause.Text = _tracker.Paused ? "Resume" : "Pause";
-        _tray.Icon = _tracker.Paused ? SystemIcons.Warning : SystemIcons.Application;
+        _tray.Icon = _tracker.Paused ? SystemIcons.Warning : AppIcon;
         _tray.Text = _tracker.Paused ? Title + " (paused)" : Title;
     }
 
