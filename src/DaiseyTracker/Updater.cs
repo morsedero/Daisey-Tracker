@@ -24,6 +24,8 @@ static class Updater
     {
         if (!Enabled) return false;
         var exe = Environment.ProcessPath!;
+        if (!File.Exists(exe))
+            throw new MovedException();
 
         using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
         http.DefaultRequestHeaders.UserAgent.ParseAdd("DaiseyTracker-Updater");
@@ -38,16 +40,45 @@ static class Updater
                 url = a.GetProperty("browser_download_url").GetString();
         if (url is null) return false;
 
-        // A running exe can be renamed but not overwritten: download, rename current to .old, move new in.
-        var tmp = exe + ".new";
+        // Download into our own data folder (always writable).
+        var dir = Path.Combine(Paths.Data, "update");
+        Directory.CreateDirectory(dir);
+        var tmp = Path.Combine(dir, "DaiseyTracker.exe");
         await using (var src = await http.GetStreamAsync(url))
         await using (var dst = File.Create(tmp))
             await src.CopyToAsync(dst);
-        File.Move(exe, exe + ".old", true);
-        File.Move(tmp, exe);
+
+        // Fast path: a running exe can be renamed but not overwritten.
+        try
+        {
+            File.Move(exe, exe + ".old", true);
+            File.Move(tmp, exe);
+            _script = null;
+        }
+        catch (Exception ex)
+        {
+            // Fallback: a script waits for us to exit, then copies the new exe over and restarts it.
+            Paths.LogError("update-swap (using fallback script)", ex);
+            if (File.Exists(exe + ".old") && !File.Exists(exe)) File.Move(exe + ".old", exe);
+            _script = Path.Combine(dir, "swap.cmd");
+            File.WriteAllText(_script,
+                "@echo off\r\n" +
+                $"for /l %%i in (1,1,30) do (copy /y \"{tmp}\" \"{exe}\" >nul 2>&1 && goto ok & timeout /t 1 /nobreak >nul)\r\n" +
+                "exit /b 1\r\n" +
+                $":ok\r\nstart \"\" \"{exe}\" --updated --autostart\r\n");
+        }
         return true;
     }
 
-    public static void StartNew() =>
-        Process.Start(new ProcessStartInfo(Environment.ProcessPath!, "--updated --autostart") { UseShellExecute = false });
+    static string? _script;
+
+    public sealed class MovedException() : Exception("The app was moved or deleted while running. Quit it and start it again from its new folder.");
+
+    public static void StartNew()
+    {
+        if (_script is null)
+            Process.Start(new ProcessStartInfo(Environment.ProcessPath!, "--updated --autostart") { UseShellExecute = false });
+        else
+            Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"{_script}\"") { UseShellExecute = false, CreateNoWindow = true });
+    }
 }

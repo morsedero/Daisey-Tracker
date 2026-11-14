@@ -91,7 +91,8 @@ sealed class TrayApp : ApplicationContext
         catch (Exception ex)
         {
             Paths.LogError("update", ex);
-            if (manual) _tray.ShowBalloonTip(3000, "Daisey Tracker", "Update check failed, see error.log", ToolTipIcon.Warning);
+            if (manual) _tray.ShowBalloonTip(5000, "Daisey Tracker",
+                ex is Updater.MovedException ? ex.Message : "Update check failed. The error was saved for Claude to read.", ToolTipIcon.Warning);
         }
         finally { _updating = false; }
     }

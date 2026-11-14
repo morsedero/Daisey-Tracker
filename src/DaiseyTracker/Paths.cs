@@ -55,6 +55,9 @@ static class Paths
 
     public static void LogError(string what, Exception ex)
     {
-        try { File.AppendAllText(ErrorLog, $"{DateTime.Now:s} {what}: {ex}\n"); } catch { }
+        var line = $"{DateTime.Now:s} v{Updater.Current.ToString(3)} {what}: {ex}\n";
+        try { File.AppendAllText(ErrorLog, line); } catch { }
+        // Copy to the synced Drive folder so problems can be read remotely.
+        try { if (SyncDir() is { } d) { Directory.CreateDirectory(d); File.AppendAllText(Path.Combine(d, "daisey-error.log"), line); } } catch { }
     }
 }
