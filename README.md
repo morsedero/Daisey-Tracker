@@ -2,7 +2,14 @@
 
 Windows tray app (C#, .NET 8, WinForms). Tracks active window, AFK and audio locally. No cloud.
 
-## Build / run
+## Easy way (no install)
+
+Every push builds `DaiseyTracker.exe` on GitHub (self-contained, no .NET needed).
+Open the repo's **Actions** tab > latest run > **Artifacts** > DaiseyTracker, unzip, double-click.
+Dashboard opens in your browser at `http://localhost:5757`. Double-click the tray icon to reopen it.
+Windows SmartScreen may warn (unsigned exe): More info > Run anyway.
+
+## Build / run from source
 
 Needs Windows + [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
 
@@ -17,7 +24,7 @@ Single exe:
 dotnet publish -c Release -r win-x64 --self-contained false -o publish
 ```
 
-Run `publish\DaiseyTracker.exe`. Tray icon appears. Menu: Pause/Resume, Export today,
+Run `publish\DaiseyTracker.exe`. Tray icon appears. Menu: Open dashboard, Pause/Resume, Export today,
 Open data folder, Start with Windows, Quit.
 
 Packages: Microsoft.Data.Sqlite, NAudio. Nothing else.

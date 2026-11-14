@@ -15,17 +15,21 @@ sealed class TrayApp : ApplicationContext
     DateTime _day = DateTime.Today;
     bool _closed;
 
-    public TrayApp()
+    readonly Dashboard _dash;
+
+    public TrayApp(bool openDashboard)
     {
         Paths.Init();
         _store = new Store(Paths.Db);
         _tracker = new Tracker(_store);
+        _dash = new Dashboard(_store);
 
         _pause.Click += (_, _) => TogglePause();
         _auto.Checked = Autostart.IsOn;
         _auto.Click += (_, _) => { Autostart.Set(!_auto.Checked); _auto.Checked = Autostart.IsOn; };
 
         var menu = new ContextMenuStrip();
+        menu.Items.Add("Open dashboard", null, (_, _) => _dash.Open());
         menu.Items.Add(_pause);
         menu.Items.Add("Export today", null, (_, _) => Export());
         menu.Items.Add("Open data folder", null, (_, _) => Process.Start("explorer.exe", $"\"{Paths.Data}\""));
@@ -34,6 +38,8 @@ sealed class TrayApp : ApplicationContext
         menu.Items.Add("Quit", null, (_, _) => Quit());
 
         _tray = new NotifyIcon { Icon = SystemIcons.Application, Text = "Daisey Tracker", ContextMenuStrip = menu, Visible = true };
+
+        _tray.DoubleClick += (_, _) => _dash.Open();
 
         // Day rollover (also catches wake-from-sleep past midnight): write the finished day.
         _midnight.Tick += (_, _) =>
@@ -46,6 +52,7 @@ sealed class TrayApp : ApplicationContext
 
         SystemEvents.SessionEnding += (_, _) => Shutdown();
         _tracker.Resume();
+        if (openDashboard) _dash.Open();
     }
 
     void TogglePause()
@@ -78,6 +85,7 @@ sealed class TrayApp : ApplicationContext
         _closed = true;
         _tracker.Pause();
         WriteSummary(DateTime.Today, quiet: true);
+        _dash.Dispose();
         _tray.Visible = false;
         _tray.Dispose();
         _store.Dispose();

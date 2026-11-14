@@ -13,13 +13,15 @@ static class Summary
     public static string Write(Store store, DateTime day)
     {
         day = day.Date;
-        var rules = RuleSet.Load(Paths.Rules);
-        var obj = Build(store, rules, day);
+        var obj = Compute(store, day);
         Directory.CreateDirectory(Paths.SummaryDir);
         var path = Path.Combine(Paths.SummaryDir, $"{day:yyyy-MM-dd}.json");
         File.WriteAllText(path, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
         return path;
     }
+
+    public static object Compute(Store store, DateTime day) =>
+        Build(store, RuleSet.Load(Paths.Rules), day.Date);
 
     static object Build(Store store, RuleSet rules, DateTime day)
     {

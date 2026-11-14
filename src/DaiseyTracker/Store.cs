@@ -19,6 +19,7 @@ sealed class Store : IDisposable
     readonly SqliteConnection _db;
     readonly SqliteCommand _ins, _upd;
     readonly Dictionary<string, Last> _last = new();
+    readonly object _sync = new(); // dashboard thread reads while UI thread writes
 
     public Store(string path)
     {
@@ -57,6 +58,11 @@ CREATE INDEX IF NOT EXISTS ix_events_stream_ts ON events(stream, ts);";
     /// </summary>
     public void Heartbeat(string stream, long tsMs, string data, double pulse = DefaultPulse)
     {
+        lock (_sync) HeartbeatLocked(stream, tsMs, data, pulse);
+    }
+
+    void HeartbeatLocked(string stream, long tsMs, string data, double pulse)
+    {
         var key = stream == "audio" ? stream + "|" + data : stream;
         if (_last.TryGetValue(key, out var l) && l.Data == data && tsMs >= l.Ts)
         {
@@ -81,6 +87,11 @@ CREATE INDEX IF NOT EXISTS ix_events_stream_ts ON events(stream, ts);";
     /// <summary>Events of a stream overlapping [fromMs, toMs), ordered by start.</summary>
     public List<Ev> Query(string stream, long fromMs, long toMs)
     {
+        lock (_sync) return QueryLocked(stream, fromMs, toMs);
+    }
+
+    List<Ev> QueryLocked(string stream, long fromMs, long toMs)
+    {
         var list = new List<Ev>();
         using var c = _db.CreateCommand();
         c.CommandText = @"SELECT ts,duration,data FROM events
@@ -95,6 +106,11 @@ WHERE stream=$s AND ts>=$lo AND ts<$to AND ts+duration*1000>$from ORDER BY ts";
     }
 
     public void Dispose()
+    {
+        lock (_sync) { DisposeLocked(); }
+    }
+
+    void DisposeLocked()
     {
         _ins.Dispose();
         _upd.Dispose();

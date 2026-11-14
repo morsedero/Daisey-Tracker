@@ -14,8 +14,11 @@ static class Paths
     {
         Directory.CreateDirectory(Data);
         Directory.CreateDirectory(SummaryDir);
-        var shipped = Path.Combine(AppContext.BaseDirectory, "rules.json");
-        if (!File.Exists(Rules) && File.Exists(shipped)) File.Copy(shipped, Rules);
+        if (File.Exists(Rules)) return;
+        // Default rules.json is embedded in the exe.
+        using var res = typeof(Paths).Assembly.GetManifestResourceStream("rules.json")!;
+        using var fs = File.Create(Rules);
+        res.CopyTo(fs);
     }
 
     public static void LogError(string what, Exception ex)
