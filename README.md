@@ -26,13 +26,14 @@ Heartbeat merge: same data as the stream's last event and gap <= 3s extends it, 
 
 ## Daily summary
 
-`summary\YYYY-MM-DD.json` in the data folder (copied to Drive). Written every 1 min, at midnight, on quit and via *Export today*. No window titles.
+`summary\YYYY-MM-DD.json` in the data folder (copied to Drive). Written every 1 min, at midnight, on quit and via *Export today*. No window titles: browser time is grouped by a site name guessed from the end of the tab title ("... - YouTube" -> YouTube), else "Other".
 
 ```json
 {
   "date": "2026-11-15",
   "activeMinutes": 312.4,
   "appMinutes": { "chrome.exe": 140.2, "Code.exe": 98.0 },
+  "siteMinutes": { "YouTube": 40.0, "GitHub": 25.5, "Other": 30.1 },
   "hourlyMinutes": [0, 0, 0, 0, 0, 0, 0, 0, 0, 42.1, 55.0, 48.3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   "audioMinutesByProcess": { "Spotify.exe": 210.0 }
 }

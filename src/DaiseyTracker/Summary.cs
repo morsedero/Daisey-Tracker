@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace DaiseyTracker;
 
-/// <summary>Builds summary/YYYY-MM-DD.json: active minutes per app and per hour, plus audio. No window titles.</summary>
+/// <summary>Builds summary/YYYY-MM-DD.json: active minutes per app, browser site and hour, plus audio. No window titles.</summary>
 static class Summary
 {
     public const string AfkData = "{\"status\":\"afk\"}";
@@ -38,6 +38,7 @@ static class Summary
 
         var apps = new Dictionary<string, double>();
         var hourly = new double[24];
+        var sites = new Dictionary<string, double>(); // browser time by site guessed from tab title
         var audio = new Dictionary<string, double>();
 
         // AFK intervals (backdated to last input by the tracker) are cut out of window time.
@@ -47,10 +48,12 @@ static class Summary
         foreach (var ev in store.Query("window", start, end))
         {
             var app = ReadString(ev.Data, "app");
+            var site = Sites.IsBrowser(app) ? Sites.FromTitle(ReadString(ev.Data, "title")) : null;
             foreach (var seg in Subtract((Math.Max(ev.Ts, start), Math.Min(ev.End, end)), afk))
             {
                 if (seg.E <= seg.S) continue;
                 apps[app] = apps.GetValueOrDefault(app) + (seg.E - seg.S) / 60000.0;
+                if (site is not null) sites[site] = sites.GetValueOrDefault(site) + (seg.E - seg.S) / 60000.0;
                 // Spread over local hours.
                 for (long t = seg.S; t < seg.E;)
                 {
@@ -79,6 +82,7 @@ static class Summary
             date = day.ToString("yyyy-MM-dd"),
             activeMinutes = Math.Round(apps.Values.Sum(), 2),
             appMinutes = Sorted(apps),
+            siteMinutes = Sorted(sites),
             hourlyMinutes = hourly.Select(v => Math.Round(v, 1)).ToArray(),
             audioMinutesByProcess = Sorted(audio),
         };
