@@ -47,13 +47,13 @@ sealed class RuleSet
         return rs;
     }
 
-    /// <summary>First matching rule; no match = Other/Other.</summary>
-    public (string Project, string Category) Classify(string app, string title)
+    /// <summary>First matching rule; no match = Other/Other with Matched=false.</summary>
+    public (string Project, string Category, bool Matched) Classify(string app, string title)
     {
         foreach (var r in _rules)
             if ((r.Proc is null || r.Proc.IsMatch(app)) && (r.Title is null || r.Title.IsMatch(title)))
-                return (r.Project, r.Category);
-        return ("Other", "Other");
+                return (r.Project, r.Category, true);
+        return ("Other", "Other", false);
     }
 
     /// <summary>Claude window = process claude.exe OR title contains "Claude".</summary>

@@ -43,14 +43,16 @@ static class Summary
         var projects = new Dictionary<string, double>();
         var cats = RuleSet.Categories.ToDictionary(c => c, _ => 0.0);
         var audio = new Dictionary<string, double>();
+        var unmatched = new Dictionary<string, double>(); // process name -> minutes no rule matched
 
-        void Emit(long s, long e, string project, string cat)
+        void Emit(long s, long e, string project, string cat, string? unmatchedApp = null)
         {
             s = Math.Max(s, start); e = Math.Min(e, end);
             if (e <= s) return;
             var min = (e - s) / 60000.0;
             projects[project] = projects.GetValueOrDefault(project) + min;
             cats[cat] += min;
+            if (unmatchedApp is not null) unmatched[unmatchedApp] = unmatched.GetValueOrDefault(unmatchedApp) + min;
         }
 
         // AFK intervals (backdated to last input by the tracker) are cut out of window time.
@@ -70,8 +72,8 @@ static class Summary
                 long s = seg.S, e = seg.E;
                 if (claude)
                 {
-                    var (p, c) = rules.Classify(app, title);
-                    Emit(s, e, p, c);
+                    var (p, c, m) = rules.Classify(app, title);
+                    Emit(s, e, p, c, m ? null : app);
                     claudeEnd = e;
                     continue;
                 }
@@ -87,8 +89,8 @@ static class Summary
                 }
                 if (e > s)
                 {
-                    var (p, c) = rules.Classify(app, title);
-                    Emit(s, e, p, c);
+                    var (p, c, m) = rules.Classify(app, title);
+                    Emit(s, e, p, c, m ? null : app);
                 }
             }
         }
@@ -111,6 +113,7 @@ static class Summary
             projectMinutes = Sorted(projects),
             categoryMinutes = Sorted(cats),
             audioMinutesByProcess = Sorted(audio),
+            uncategorizedMinutesByProcess = Sorted(unmatched),
         };
     }
 

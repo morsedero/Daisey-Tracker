@@ -57,7 +57,8 @@ Packages: Microsoft.Data.Sqlite, NAudio. Nothing else.
   "date": "2026-11-14",
   "projectMinutes": { "Claude": 95.4, "Dev": 40.1 },
   "categoryMinutes": { "Deep": 120.0, "Support": 15.5, "Other": 30.0, "Waiting": 9.2 },
-  "audioMinutesByProcess": { "spotify.exe": 210.0 }
+  "audioMinutesByProcess": { "spotify.exe": 210.0 },
+  "uncategorizedMinutesByProcess": { "figma.exe": 30.0 }
 }
 ```
 
