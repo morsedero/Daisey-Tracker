@@ -60,3 +60,12 @@ Packages: Microsoft.Data.Sqlite, NAudio.
 ## Dashboard
 
 `dashboard/daisey.html` is the source of the claude.ai artifact dashboard. It reads the Drive files through the Google Drive connector, merges PCs, and warns when no PC has written for 10 min.
+
+## Daisey
+
+The tray app links to a Daisey account (morsedero.com/daisey/now). On first start it opens Daisey's
+Approve page in the browser; one click links this PC. After that it sends the day's summary to Daisey
+every 2 min when it changed (every 5 min when not), and Daisey shows it under **PC activity**
+(menu, or Settings → Computer). Tray menu: *Connect to Daisey* / *Connected to Daisey* (click to stop).
+*Open dashboard* opens Daisey's PC activity once linked. The device token is in `daisey-link.txt`
+in the data folder. Server side: `daisey/functions/daisey-now-tracker.js` in the site repo.

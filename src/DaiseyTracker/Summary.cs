@@ -19,7 +19,10 @@ static class Summary
     public static readonly string Device = new string(Environment.MachineName
         .Select(c => char.IsAsciiLetterOrDigit(c) || c == '-' ? c : '-').ToArray()).Trim('-') is { Length: > 0 } n ? n : "PC";
 
-    public static string Write(Store store, DateTime day)
+    public static string PathFor(DateTime day) => Path.Combine(Paths.SummaryDir, $"{day.Date:yyyy-MM-dd}.json");
+
+    /// <summary>Writes the day's summary (data folder + Drive) and returns it.</summary>
+    public static JsonObject Write(Store store, DateTime day)
     {
         day = day.Date;
         var node = JsonSerializer.SerializeToNode(Compute(store, day))!.AsObject();
@@ -35,8 +38,7 @@ static class Summary
 
         var json = node.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
         Directory.CreateDirectory(Paths.SummaryDir);
-        var path = Path.Combine(Paths.SummaryDir, $"{day:yyyy-MM-dd}.json");
-        File.WriteAllText(path, json);
+        File.WriteAllText(PathFor(day), json);
 
         // Mirror to the synced cloud folder so the claude.ai dashboard can read it.
         if (Paths.SyncDir() is { } sync)
@@ -49,7 +51,7 @@ static class Summary
             }
             catch (Exception ex) { Paths.LogError("sync", ex); }
         }
-        return path;
+        return node;
     }
 
     public static object Compute(Store store, DateTime day)
