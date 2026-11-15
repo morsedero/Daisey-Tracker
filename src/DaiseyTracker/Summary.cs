@@ -48,7 +48,7 @@ static class Summary
 
         var apps = new Dictionary<string, double>();
         var hourly = new double[24];
-        var perMinute = new Dictionary<string, double>?[1500]; // minute of day -> app -> seconds (1500 covers 25h DST days)
+        var perMinute = new Dictionary<(string App, string? Detail), double>?[1500]; // minute of day -> (app, project/site) -> seconds (1500 covers 25h DST days)
         var sites = new Dictionary<string, double>(); // browser time by site guessed from tab title
         var details = new Dictionary<string, Dictionary<string, double>>(); // app -> project/file -> minutes
         var lastDetail = new Dictionary<string, string>(); // app -> project of its last main window
@@ -81,7 +81,8 @@ static class Summary
                 {
                     int mi = (int)Math.Clamp((t - start) / 60_000, 0, perMinute.Length - 1);
                     long minEnd = Math.Min(seg.E, start + (mi + 1) * 60_000L);
-                    (perMinute[mi] ??= new())[app] = perMinute[mi]!.GetValueOrDefault(app) + (minEnd - t) / 1000.0;
+                    var k = (app, site ?? detail);
+                    (perMinute[mi] ??= new())[k] = perMinute[mi]!.GetValueOrDefault(k) + (minEnd - t) / 1000.0;
                     t = minEnd;
                 }
                 // Spread over local hours.
@@ -95,20 +96,20 @@ static class Summary
             }
         }
 
-        // Timeline: each minute goes to the app used most in it (>= 20s active, else idle), merged into runs.
-        var timeline = new List<object[]>();
-        string? runApp = null; int runStart = 0;
+        // Timeline: each minute goes to the (app, project/site) used most in it (>= 20s active, else idle), merged into runs.
+        var timeline = new List<object?[]>();
+        (string App, string? Detail)? run = null; int runStart = 0;
         for (int mi = 0; mi <= perMinute.Length; mi++)
         {
-            string? top = null;
+            (string App, string? Detail)? top = null;
             if (mi < perMinute.Length && perMinute[mi] is { } m)
             {
                 var best = m.MaxBy(kv => kv.Value);
                 if (best.Value >= 20) top = best.Key;
             }
-            if (top == runApp) continue;
-            if (runApp is not null) timeline.Add(new object[] { runStart, mi, runApp });
-            runApp = top; runStart = mi;
+            if (top == run) continue;
+            if (run is { } r) timeline.Add(new object?[] { runStart, mi, r.App, r.Detail });
+            run = top; runStart = mi;
         }
 
         // Audio: separate stream, not part of active time.
@@ -133,7 +134,7 @@ static class Summary
             detailMinutes = details.Where(kv => kv.Value.Values.Any(v => v >= 0.5)).ToDictionary(kv => kv.Key,
                 kv => kv.Value.Where(x => x.Value >= 0.5).OrderByDescending(x => x.Value).Take(6)
                         .ToDictionary(x => x.Key, x => Math.Round(x.Value, 2))),
-            timeline, // [startMinute, endMinute, app], minutes from local midnight
+            timeline, // [startMinute, endMinute, app, project/site or null], minutes from local midnight
             hourlyMinutes = hourly.Select(v => Math.Round(v, 1)).ToArray(),
             audioMinutesByProcess = Sorted(audio),
         };
