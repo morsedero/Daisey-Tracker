@@ -35,6 +35,7 @@ Heartbeat merge: same data as the stream's last event and gap <= 3s extends it, 
   "appMinutes": { "chrome.exe": 140.2, "Code.exe": 98.0 },
   "siteMinutes": { "YouTube": 40.0, "GitHub": 25.5, "Other": 30.1 },
   "detailMinutes": { "Code.exe": { "DaiseyTracker": 80.0 }, "EXCEL.EXE": { "Budget.xlsx": 12.0 } },
+  "timeline": [[540, 585, "Code.exe"], [585, 600, "chrome.exe"]],
   "hourlyMinutes": [0, 0, 0, 0, 0, 0, 0, 0, 0, 42.1, 55.0, 48.3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   "audioMinutesByProcess": { "Spotify.exe": 210.0 }
 }
