@@ -51,6 +51,7 @@ static class Summary
         var perMinute = new Dictionary<string, double>?[1500]; // minute of day -> app -> seconds (1500 covers 25h DST days)
         var sites = new Dictionary<string, double>(); // browser time by site guessed from tab title
         var details = new Dictionary<string, Dictionary<string, double>>(); // app -> project/file -> minutes
+        var lastDetail = new Dictionary<string, string>(); // app -> project of its last main window
         var audio = new Dictionary<string, double>();
 
         // AFK intervals (backdated to last input by the tracker) are cut out of window time.
@@ -63,6 +64,8 @@ static class Summary
             var title = ReadString(ev.Data, "title");
             var site = Sites.IsBrowser(app) ? Sites.FromTitle(title) : null;
             var detail = Details.FromTitle(app, title);
+            if (detail is not null) lastDetail[app] = detail;
+            else detail = lastDetail.GetValueOrDefault(app); // mixer/plugin windows count toward the open project
             foreach (var seg in Subtract((Math.Max(ev.Ts, start), Math.Min(ev.End, end)), afk))
             {
                 if (seg.E <= seg.S) continue;
@@ -127,7 +130,7 @@ static class Summary
             appMinutes = Sorted(apps),
             siteMinutes = Sorted(sites),
             // Top 6 projects/files per app (names only, guessed from window titles).
-            detailMinutes = details.ToDictionary(kv => kv.Key,
+            detailMinutes = details.Where(kv => kv.Value.Values.Any(v => v >= 0.5)).ToDictionary(kv => kv.Key,
                 kv => kv.Value.Where(x => x.Value >= 0.5).OrderByDescending(x => x.Value).Take(6)
                         .ToDictionary(x => x.Key, x => Math.Round(x.Value, 2))),
             timeline, // [startMinute, endMinute, app], minutes from local midnight
