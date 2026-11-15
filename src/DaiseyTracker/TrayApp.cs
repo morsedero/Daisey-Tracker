@@ -52,6 +52,7 @@ sealed class TrayApp : ApplicationContext
             {
                 WriteSummary(_day, quiet: true);
                 _day = Summary.Today;
+                Prune();
             }
             // Keep the cloud dashboard fresh: export today every 1 min.
             if (DateTime.Now - _lastExport >= TimeSpan.FromMinutes(1))
@@ -62,6 +63,7 @@ sealed class TrayApp : ApplicationContext
         };
         _midnight.Start();
         WriteSummary(_day.AddDays(-1), quiet: true); // yesterday may have missed its final write (PC off at day end)
+        Prune();
 
         // Auto-update: check every minute (cheap conditional request).
         _update.Tick += async (_, _) => { _update.Interval = 60_000; await CheckUpdate(manual: false); };
@@ -106,6 +108,12 @@ sealed class TrayApp : ApplicationContext
         _pause.Text = _tracker.Paused ? "Resume" : "Pause";
         _tray.Icon = _tracker.Paused ? SystemIcons.Warning : AppIcon;
         _tray.Text = _tracker.Paused ? Title + " (paused)" : Title;
+    }
+
+    /// <summary>Raw events older than 90 days go; the daily summary files stay forever.</summary>
+    void Prune()
+    {
+        try { _store.Prune(90); } catch (Exception ex) { Paths.LogError("prune", ex); }
     }
 
     void Export() => WriteSummary(Summary.Today, quiet: false);

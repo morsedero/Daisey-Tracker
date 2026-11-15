@@ -105,6 +105,19 @@ WHERE stream=$s AND ts>=$lo AND ts<$to AND ts+duration*1000>$from ORDER BY ts";
         return list;
     }
 
+    /// <summary>Delete raw events older than <paramref name="days"/> days. Daily summaries are kept.</summary>
+    public int Prune(int days)
+    {
+        long cutoff = DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeMilliseconds();
+        lock (_sync)
+        {
+            using var c = _db.CreateCommand();
+            c.CommandText = "DELETE FROM events WHERE ts + duration*1000 < $c";
+            c.Parameters.AddWithValue("$c", cutoff);
+            return c.ExecuteNonQuery();
+        }
+    }
+
     public void Dispose()
     {
         lock (_sync) { DisposeLocked(); }

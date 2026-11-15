@@ -7,7 +7,7 @@ Windows tray app (C#, .NET 8, WinForms). Tracks which apps you use, when you're 
 1. Download `DaiseyTracker.exe` from **Releases > latest**. Self-contained, no .NET needed.
 2. Put it in a fixed folder (e.g. `C:\Tools\DaiseyTracker\`), double-click. Tray menu: tick **Start with Windows**.
    Don't move the exe while it runs.
-3. Install **Google Drive for desktop**. Summaries go to `My Drive\DaiseyTracker\daisey-YYYY-MM-DD.json` every 1 min.
+3. Install **Google Drive for desktop**. Summaries go to `My Drive\DaiseyTracker\daisey-YYYY-MM-DD-PCNAME.json` every 1 min (one file per PC; the dashboard adds them up).
 4. Open the claude.ai dashboard artifact (reads those files from your Drive).
 
 It auto-updates from GitHub releases (a minute after start, then every minute; tray: *Check for updates*).
@@ -26,7 +26,7 @@ Heartbeat merge: same data as the stream's last event and gap <= 3s extends it, 
 
 ## Daily summary
 
-`summary\YYYY-MM-DD.json` in the data folder (copied to Drive). A day runs 06:00–05:59. Written every 1 min, at day end (06:00), on quit and via *Export today*. No window titles: browser time is grouped by a site name guessed from the end of the tab title ("... - YouTube" -> YouTube), else "Other". `detailMinutes` is the project/file open inside each app, guessed from "item - App" titles (top 6 per app, name only).
+`summary\YYYY-MM-DD.json` in the data folder (copied to Drive). A day runs 06:00–05:59. Written every 1 min, at day end (06:00), on quit and via *Export today*. Raw events in `events.db` older than 90 days are deleted; summaries are kept. No window titles: browser time is grouped by a site name guessed from the end of the tab title ("... - YouTube" -> YouTube), else "Other". `detailMinutes` is the project/file open inside each app, guessed from "item - App" titles (top 6 per app, name only).
 
 ```json
 {
@@ -42,7 +42,7 @@ Heartbeat merge: same data as the stream's last event and gap <= 3s extends it, 
 }
 ```
 
-Errors: `error.log` in the data folder, also copied to `My Drive\DaiseyTracker\daisey-error.log`.
+Errors: `error.log` in the data folder, also copied to `My Drive\DaiseyTracker\daisey-error-PCNAME.log`.
 Other sync folder: put its path in `%LOCALAPPDATA%\DaiseyTracker\sync-folder.txt`.
 
 ## Build from source
@@ -56,3 +56,7 @@ dotnet run
 
 Local builds are version 0.0.0 and never self-update. CI (`.github/workflows/build.yml`) builds a single-file exe and publishes release `v1.0.<run>`.
 Packages: Microsoft.Data.Sqlite, NAudio.
+
+## Dashboard
+
+`dashboard/daisey.html` is the source of the claude.ai artifact dashboard. It reads the Drive files through the Google Drive connector, merges PCs, and warns when no PC has written for 10 min.

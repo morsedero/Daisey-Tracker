@@ -15,6 +15,10 @@ static class Summary
     public const int DayStartHour = 6;
     public static DateTime Today => DateTime.Now.AddHours(-DayStartHour).Date;
 
+    /// <summary>This PC's name, safe for a file name (letters, digits, dash).</summary>
+    public static readonly string Device = new string(Environment.MachineName
+        .Select(c => char.IsAsciiLetterOrDigit(c) || c == '-' ? c : '-').ToArray()).Trim('-') is { Length: > 0 } n ? n : "PC";
+
     public static string Write(Store store, DateTime day)
     {
         day = day.Date;
@@ -26,6 +30,8 @@ static class Summary
             foreach (var (app, _) in node[key]!.AsObject())
                 if (!icons.ContainsKey(app) && Icons.DataUri(app) is { } uri) icons[app] = uri;
         node["icons"] = icons;
+        node["device"] = Device;
+        node["updatedAt"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); // dashboard warns when this goes stale
 
         var json = node.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
         Directory.CreateDirectory(Paths.SummaryDir);
@@ -38,7 +44,8 @@ static class Summary
             try
             {
                 Directory.CreateDirectory(sync);
-                File.WriteAllText(Path.Combine(sync, $"daisey-{day:yyyy-MM-dd}.json"), json);
+                // One file per PC, so two PCs never overwrite each other; the dashboard adds them up.
+                File.WriteAllText(Path.Combine(sync, $"daisey-{day:yyyy-MM-dd}-{Device}.json"), json);
             }
             catch (Exception ex) { Paths.LogError("sync", ex); }
         }

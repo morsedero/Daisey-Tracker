@@ -1,0 +1,442 @@
+<title>Daisey Tracker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: day = a journal of work sessions (newest first), each with a strip of its app switches; week = seven day stripes on one hour scale. */
+:root{
+  --bg:#fafafa; --fg:#111113; --mut:#6e6e76; --line:#e7e7ea; --now:#e34948;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#9a6fd8; --so:#8e8e96;
+  --sans:"Geist",system-ui,sans-serif; --mono:"Geist Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light; /* light look only, by choice */
+}
+body{background:var(--bg);color:var(--fg);font:14px/1.4 var(--sans);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px}
+main{max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.nav{display:flex;align-items:center;gap:4px}
+.date{color:var(--fg);font-size:14px;font-weight:500;margin:0;min-width:120px;text-align:center}
+button{font:inherit;color:var(--mut);background:none;border:0;border-radius:6px;padding:4px 10px;cursor:pointer}
+button:hover{color:var(--fg);background:var(--line)}
+button:disabled{opacity:.3;cursor:default;background:none}
+button:focus-visible{outline:2px solid var(--s1);outline-offset:1px}
+.nav button{font-size:20px;line-height:1;padding:2px 10px 4px}
+.seg{display:flex;gap:2px}
+.seg button[aria-pressed="true"]{color:var(--fg);background:var(--line)}
+.total{font:500 48px/1 var(--mono);letter-spacing:-.03em;margin:8px 0 0;font-variant-numeric:tabular-nums}
+.total small{font:400 15px var(--sans);color:var(--mut);letter-spacing:0;margin-left:10px}
+
+.cal{display:grid;grid-template-columns:44px 1fr}
+.hours{position:relative}
+.hours span{position:absolute;right:8px;transform:translateY(-50%);font:400 11px var(--mono);color:var(--mut)}
+.lane{position:relative;border-left:1px solid var(--line)}
+.lane hr{position:absolute;left:0;right:0;margin:0;border:0;border-top:1px solid var(--line)}
+.blk{position:absolute;left:6px;right:0;border-radius:6px;border-left:3px solid var(--c);
+  background:color-mix(in srgb,var(--c) 16%,var(--bg));overflow:hidden;padding:0 8px;display:flex;flex-direction:column;justify-content:center;gap:1px;min-width:0}
+.blk.tall{justify-content:flex-start;padding-top:7px}
+.blk .t1{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}
+.blk img{width:16px;height:16px;object-fit:contain;flex:none}
+.blk b{font-weight:500;overflow:hidden;text-overflow:ellipsis;flex:none;max-width:50%}
+.blk .d{color:var(--mut);overflow:hidden;text-overflow:ellipsis;min-width:0}
+.blk .dur{margin-left:auto;padding-left:8px;font:400 11px var(--mono);color:var(--mut);flex:none}
+.week{display:grid;grid-template-columns:40px repeat(7,minmax(0,1fr));column-gap:4px}
+.wday{display:flex;flex-direction:column;align-items:center;gap:0;padding:4px 0 10px;border-radius:8px}
+.wday span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.wday b{font:500 18px var(--sans);color:var(--fg)}
+.wday small{font:400 11px var(--mono);color:var(--mut)}
+.wday.is-today b{color:var(--now)}
+.wcol{position:relative;border-left:1px solid var(--line);cursor:pointer}
+.wcol hr{position:absolute;left:0;right:0;margin:0;border:0;border-top:1px solid var(--line)}
+.wcol .blk{left:2px;right:2px;padding:0;border-left-width:2px;border-radius:3px;align-items:center;justify-content:center}
+.wcol .now{left:0}.wcol .now::before{display:none}
+.ses{display:grid;grid-template-columns:52px 1fr;gap:16px;padding:14px 0}
+.when{display:flex;flex-direction:column;font:400 12px/1.5 var(--mono);color:var(--mut);padding-top:1px}
+.when span:first-child{color:var(--fg)}
+.ses.live{background:color-mix(in srgb,var(--c) 8%,#fff);border:1px solid color-mix(in srgb,var(--c) 22%,var(--bg));border-radius:18px;padding:22px 18px;margin:4px -18px 18px;box-shadow:0 1px 2px rgba(17,17,19,.04),0 8px 24px rgba(17,17,19,.06)}
+.ses.live .head img{width:32px;height:32px}
+.ses.live .head b{font-size:20px}
+.ses.live .head .d{font-size:15px}
+.ses.live .head .dur{font:500 26px var(--mono);color:var(--fg);letter-spacing:-.02em}
+.ses.live .strip{height:10px;border-radius:5px}
+.ses.live .when{font-size:13px}
+.lens{position:absolute;top:-3px;bottom:-3px;border:1.5px solid var(--fg);border-radius:4px;pointer-events:none;box-sizing:border-box}
+.ses.live .when span:last-child{color:var(--c);font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.pulse{width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block;flex:none}
+@media (prefers-reduced-motion:no-preference){.pulse{animation:pulse 1.6s ease-in-out infinite}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+.awaynow{display:flex;align-items:center;gap:8px;margin-left:68px;padding:6px 0 10px;color:var(--mut);font-size:13px}
+.body{min-width:0;display:flex;flex-direction:column;gap:10px}
+.head{display:flex;align-items:center;gap:8px;min-width:0}
+.head img{width:22px;height:22px;object-fit:contain;flex:none}
+.head b{font-weight:500;font-size:15px;flex:none}
+.head .d{color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.head .dur{margin-left:auto;padding-left:12px;font:400 13px var(--mono);color:var(--mut);flex:none}
+.strip,.wstrip{position:relative;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.strip i,.wstrip i{position:absolute;top:0;bottom:0;min-width:2px}
+.more{display:flex;flex-wrap:wrap;gap:4px 14px;font:400 12px var(--mono);color:var(--mut)}
+.more span{display:inline-flex;align-items:center;gap:5px}
+.more img{width:14px;height:14px;object-fit:contain}
+.strip i{transition:opacity .15s}
+.strip.focus i:not(.on){opacity:.15}
+.strip.focus i.on{opacity:1}
+.seglabs{position:relative;height:16px;margin-top:-4px}
+.seglab{position:absolute;top:0;display:flex;align-items:center;justify-content:center;gap:3px;font:400 10px var(--mono);color:var(--mut);white-space:nowrap;overflow:hidden}
+.seglab img{width:12px;height:12px;object-fit:contain}
+.strip i,.seglab,.more .bnote,[data-tip]{cursor:pointer}
+.more .chip{cursor:pointer;border-radius:5px;padding:1px 4px;margin:-1px -4px}
+.more .chip.sel,.more .chip:hover{background:var(--line);color:var(--fg)}
+.strip i.brk{background:repeating-linear-gradient(135deg,#9a9aa3 0 2px,var(--bg) 2px 4px)}
+.more .bnote{color:var(--mut);font-family:var(--sans)}
+.more .bnote::before{content:"";width:14px;height:6px;border-radius:2px;background:repeating-linear-gradient(135deg,#c9c9cf 0 3px,var(--bg) 3px 6px);border:1px solid var(--line)}
+.more em{font:400 12px var(--sans);font-style:normal;color:var(--fg)}
+.gap{margin-left:68px;color:var(--mut);font-size:12px;padding:4px 0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line)}
+.wk{display:grid;grid-template-columns:auto 1fr auto;gap:14px 14px;align-items:center}
+.axis{position:relative;height:14px;font:400 10px var(--mono);color:var(--mut)}
+.axis span{position:absolute;transform:translateX(-50%)}
+.axis span:first-child{transform:none}.axis span:last-child{transform:translateX(-100%)}
+.wstrip{height:16px;border-radius:4px;cursor:pointer}
+.wlab{font-size:13px;color:var(--fg);text-align:left;padding:2px 6px;white-space:nowrap}
+.wlab.is-today{color:var(--now)}
+.wtot{font:400 12px var(--mono);color:var(--mut);min-width:52px;text-align:right}
+.blk .t2{font:400 11px var(--mono);color:var(--mut);white-space:nowrap}
+.now{position:absolute;left:-4px;right:0;height:2px;background:var(--now);z-index:2}
+.now::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--now)}
+.note{color:var(--mut);font-size:13px;margin:0;min-height:1.5em}
+.empty{color:var(--mut);margin:0}
+.stale{margin:0 0 20px;padding:10px 14px;border-radius:10px;background:#fff4e5;color:#8a4b00;font-size:14px}
+.tip{position:fixed;pointer-events:none;background:var(--fg);color:var(--bg);padding:5px 9px;border-radius:6px;font-size:12px;z-index:20;display:none;white-space:nowrap}
+</style>
+
+<main>
+  <header>
+    <div class="bar">
+      <div class="nav"><button type="button" id="prev" aria-label="Previous">&#8249;</button><p class="date" id="date"></p><button type="button" id="next" aria-label="Next">&#8250;</button></div>
+      <div class="seg"><button type="button" data-view="day" aria-pressed="true">Day</button><button type="button" data-view="week" aria-pressed="false">Week</button></div>
+    </div>
+    <p class="total" id="total">–</p>
+  </header>
+  <p class="stale" id="stale" role="alert" hidden></p>
+  <div id="cal"><p class="empty">Loading…</p></div>
+  <p class="note" id="note" role="status"></p>
+</main>
+<div class="tip" id="tip"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const NAMES={"chrome":"Chrome","msedge":"Edge","firefox":"Firefox","code":"VS Code","devenv":"Visual Studio","windowsterminal":"Terminal",
+  "explorer":"File Explorer","claude":"Claude","spotify":"Spotify","discord":"Discord","slack":"Slack","ms-teams":"Teams","outlook":"Outlook",
+  "winword":"Word","excel":"Excel","powerpnt":"PowerPoint","notepad":"Notepad","obs64":"OBS","vlc":"VLC","steam":"Steam","cubase14":"Cubase",
+  "applicationframehost":"Windows app","whatsapp":"WhatsApp","whatsapp.root":"WhatsApp","microsoft.media.player":"Media Player",
+  "photos":"Photos","systemsettings":"Settings","daiseytracker":"Daisey Tracker","googledrivefs":"Google Drive","uad console":"UAD Console"};
+const nice=a=>{let b=String(a).replace(/\.exe$/i,"");if(NAMES[b.toLowerCase()])return NAMES[b.toLowerCase()];
+  b=b.replace(/^(Microsoft|Windows)\./i,"").replace(/\.(Root|App|Exe)$/i,"").replace(/\./g," ").replace(/([a-z])([A-Z])/g,"$1 $2").replace(/\d+$/,"");
+  return b.charAt(0).toUpperCase()+b.slice(1)};
+const fmt=m=>m>=60?Math.floor(m/60)+"h "+String(Math.round(m%60)).padStart(2,"0")+"m":Math.round(m)+"m";
+const hm=m=>String(Math.floor(m/60)%24).padStart(2,"0")+":"+String(Math.round(m%60)).padStart(2,"0");
+const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const num=v=>typeof v==="number"&&isFinite(v)&&v>0?v:0;
+const isPng=s=>typeof s==="string"&&s.startsWith("data:image/png;base64,");
+const PX=4;      // day view: pixels per minute (one hour = 240px), so icon + name fit from ~5 min
+const WPX=0.7;   // week view: pixels per minute
+
+// ---------- shared ----------
+const DAY_MS=864e5;
+const atMidnight=d=>new Date(d.getFullYear(),d.getMonth(),d.getDate());
+const addDays=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
+const weekStart=d=>addDays(atMidnight(d),-atMidnight(d).getDay()); // weeks start on Sunday
+// A day runs 06:00 to 05:59: before 06:00 it is still "yesterday".
+const DAY_START=360;
+const logicalNow=()=>new Date(Date.now()-DAY_START*6e4);
+const logicalToday=()=>atMidnight(logicalNow());
+const todayIso=()=>iso(logicalNow());
+// Minutes on the clock since the start of the logical day's calendar date (06:00 = 360, 01:00 next night = 1500).
+const nowClock=()=>{const n=new Date(),m=n.getHours()*60+n.getMinutes();return m<DAY_START?m+1440:m};
+
+function cleanRuns(d){
+  const raw=(Array.isArray(d&&d.timeline)?d.timeline:[]).filter(r=>Array.isArray(r)&&typeof r[0]==="number"&&typeof r[1]==="number"&&r[1]>r[0]&&typeof r[2]==="string").sort((x,y)=>x[0]-y[0]);
+  // Only join the same app + project when back-to-back; every block of 1 min or more stays.
+  const runs=[];
+  const off=typeof d.dayStartMinute==="number"?d.dayStartMinute:0; // file minutes count from this clock time
+  for(let [s,e,app,det] of raw){s+=off;e+=off;
+    const p=runs[runs.length-1], detail=typeof det==="string"?det:"";
+    if(p&&p[2]===app&&p[3]===detail&&s-p[1]<=1){p[1]=e;continue}
+    runs.push([s,e,app,detail]);
+  }
+  return runs;
+}
+function colorsFor(minutesByApp){
+  // Colors follow the most-used apps: top 4 get a hue, the rest grey.
+  const c={};Object.entries(minutesByApp).sort((x,y)=>y[1]-x[1]).slice(0,4).forEach(([k],i)=>c[k]="--s"+(i+1));return c;
+}
+const totalOf=d=>d?num(d.activeMinutes)||Object.values(d.appMinutes||{}).reduce((a,b)=>a+num(b),0):0;
+function iconImg(icons,app,size){
+  if(!isPng(icons[app]))return null;
+  const img=new Image();img.src=icons[app];img.alt="";if(size){img.style.width=img.style.height=size+"px"}return img;
+}
+function block(s,e,app,detail,top,h,color){
+  const el=document.createElement("div");
+  el.className="blk";el.style.top=top+"px";el.style.height=h+"px";el.style.setProperty("--c",`var(${color[app]||"--so"})`);
+  el.dataset.tip=`${nice(app)}${detail?" · "+detail:""}  ${hm(s)}–${hm(e)} (${fmt(e-s)})`;
+  return el;
+}
+
+// ---------- day view: a journal of sessions ----------
+// A session is work without a break of 5+ min. One row each: time, main app + project, duration,
+// a thin strip of every switch inside it, and the other apps as small icons.
+function sessionsOf(runs){
+  const out=[];
+  for(const r of runs){
+    const cur=out[out.length-1];
+    if(cur&&r[0]-cur.e<5){cur.runs.push(r);cur.e=r[1]}else out.push({s:r[0],e:r[1],runs:[r]});
+  }
+  for(const ses of out) summarize(ses);
+  // Same app + project picked up again after a break of under 30 min: one session, with the break inside.
+  const merged=[];
+  for(const ses of out){
+    const p=merged[merged.length-1];
+    if(p&&p.main===ses.main&&p.detail===ses.detail&&ses.s-p.e<30){
+      p.breaks.push([p.e,ses.s]);p.runs.push(...ses.runs);p.e=ses.e;summarize(p);
+    }else{ses.breaks=[];merged.push(ses)}
+  }
+  return merged;
+}
+function summarize(ses){
+  {
+    const by={}, det={};
+    for(const [s,e,app,d] of ses.runs){by[app]=(by[app]||0)+(e-s); if(d){const k=app+"\u0001"+d;det[k]=(det[k]||0)+(e-s)}}
+    ses.apps=Object.entries(by).sort((x,y)=>y[1]-x[1]);
+    ses.main=ses.apps[0][0];
+    const d=Object.entries(det).filter(([k])=>k.startsWith(ses.main+"\u0001")).sort((x,y)=>y[1]-x[1])[0];
+    ses.detail=d?d[0].split("\u0001")[1]:"";
+    ses.active=ses.apps.reduce((a,[,m])=>a+m,0);
+  }
+}
+function strip(runs,s0,e0,color,cls,icons){
+  const st=document.createElement("div");st.className=cls||"strip";const W=Math.max(1,e0-s0);
+  st._data={runs,s0,e0,color,icons:icons||{},breaks:[]};
+  for(const [s,e,app,detail] of runs){
+    const i=document.createElement("i");i.style.left=((s-s0)/W*100)+"%";i.style.width=Math.max(.4,(e-s)/W*100)+"%";
+    i.style.background=`var(${color[app]||"--so"})`;i.dataset.app=app;
+    i.dataset.tip=`${nice(app)}${detail?" · "+detail:""}  ${hm(s)}–${hm(e)} (${fmt(e-s)})`;st.append(i);
+  }
+  return st;
+}
+function renderDay(d,isToday){
+  $("total").innerHTML=fmt(totalOf(d))+"<small>active</small>";
+  if(!d){$("cal").innerHTML='<p class="empty">Nothing tracked this day.</p>';return}
+  const icons=d.icons&&typeof d.icons==="object"?d.icons:{};
+  const color=colorsFor(Object.fromEntries(Object.entries(d.appMinutes||{}).map(([k,v])=>[k,num(v)])));
+  const runs=cleanRuns(d);
+  if(!runs.length){$("cal").innerHTML=`<p class="empty">${d.timeline?"Nothing tracked yet.":"Sessions appear once the tracker updates itself."}</p>`;return}
+  const list=sessionsOf(runs).reverse(); // newest first
+  const out=[];
+  if(isToday&&nowClock()-list[0].e>3){
+    const aw=document.createElement("div");aw.className="awaynow";
+    aw.innerHTML='<i class="pulse"></i><span></span>';aw.lastChild.textContent=`away for ${fmt(nowClock()-list[0].e)}`;out.push(aw);
+  }
+  list.forEach((ses,i)=>{
+    if(i){const g=document.createElement("div");g.className="gap";g.textContent=`${fmt(list[i-1].s-ses.e)} away`;out.push(g)}
+    const row=document.createElement("article");row.className="ses";
+    const when=document.createElement("div");when.className="when";
+    const live=isToday&&i===0&&nowClock()-ses.e<=3;
+    when.innerHTML=`<span></span><span></span>`;when.children[0].textContent=hm(ses.s);
+    if(live){when.children[1].innerHTML='<i class="pulse"></i>now';row.classList.add("live");row.style.setProperty("--c",`var(${color[ses.main]||"--so"})`)}
+    else when.children[1].textContent=hm(ses.e);
+    const body=document.createElement("div");body.className="body";
+    const head=document.createElement("div");head.className="head";
+    const img=iconImg(icons,ses.main);if(img)head.append(img);
+    const n=document.createElement("b");n.textContent=nice(ses.main);head.append(n);
+    if(ses.detail){const dd=document.createElement("span");dd.className="d";dd.dir="auto";dd.textContent=ses.detail;head.append(dd)}
+    const dur=document.createElement("span");dur.className="dur";dur.textContent=fmt(ses.active);head.append(dur);
+    const st=strip(ses.runs,ses.s,ses.e,color,"strip",icons);st._data.breaks=ses.breaks;
+    for(const br of ses.breaks){const [bs,be]=br;
+      const k=document.createElement("i");k.className="brk";const W=Math.max(1,ses.e-ses.s);
+      k.style.left=((bs-ses.s)/W*100)+"%";k.style.width=((be-bs)/W*100)+"%";k.dataset.tip=`Break  ${hm(bs)}–${hm(be)} (${fmt(be-bs)})`;k.dataset.brk=String(ses.breaks.indexOf(br));st.append(k);
+    }
+    body.append(head,st);
+    // Under the strip: icon + time for the other apps' pieces that are wide enough (fitLabels hides the rest).
+    const labs=document.createElement("div");labs.className="seglabs";const SW=Math.max(1,ses.e-ses.s);
+    for(const [s,e,app] of ses.runs){
+      if(app===ses.main)continue;
+      const l=document.createElement("span");l.className="seglab";l.style.left=((s-ses.s)/SW*100)+"%";l.style.width=((e-s)/SW*100)+"%";
+      const im=iconImg(icons,app);if(im)l.append(im);l.append(fmt(e-s));labs.append(l);
+    }
+    if(labs.childElementCount)body.append(labs);
+    if(ses.apps.length>1||ses.breaks.length){
+      const more=document.createElement("div");more.className="more";
+      ses.breaks.forEach(([bs,be],bi)=>{const c=document.createElement("span");c.className="bnote";c.textContent=`${fmt(be-bs)} break`;c.dataset.tip=`Break  ${hm(bs)}–${hm(be)} (${fmt(be-bs)})`;
+        c.onmouseenter=()=>{st.classList.add("focus");st.querySelectorAll("i").forEach(x=>x.classList.toggle("on",x.dataset.brk===String(bi)))};
+        c.onmouseleave=()=>st.classList.remove("focus");more.append(c)});
+      for(const [app,m] of ses.apps.slice(1,7)){
+        const c=document.createElement("span");c.title=nice(app);c.className="chip";
+        // Hover or tap an app: its pieces light up in the strip above, the rest dims.
+        const on=()=>{st.classList.add("focus");st.querySelectorAll("i").forEach(x=>x.classList.toggle("on",x.dataset.app===app));c.classList.add("sel")};
+        const off=()=>{st.classList.remove("focus");c.classList.remove("sel")};
+        c.onmouseenter=on;c.onmouseleave=off;
+        const im=iconImg(icons,app);if(im)c.append(im);else{const t=document.createElement("em");t.textContent=nice(app);c.append(t)}
+        c.append(fmt(m));more.append(c);
+      }
+      body.append(more);
+    }
+    row.append(when,body);out.push(row);
+  });
+  $("cal").replaceChildren(...out);
+  fitLabels();
+}
+function fitLabels(){
+  document.querySelectorAll(".seglabs").forEach(row=>{
+    let any=false;
+    row.querySelectorAll(".seglab").forEach(l=>{const fits=l.getBoundingClientRect().width>=40;l.style.visibility=fits?"":"hidden";any||=fits});
+    row.style.height=any?"":"0px";row.style.marginTop=any?"":"-10px"; // collapse the row when nothing fits
+  });
+}
+addEventListener("resize",fitLabels);
+
+// ---------- week view: seven day stripes on one hour scale ----------
+function renderWeek(start,byDate){
+  const dates=[...Array(7)].map((_,i)=>addDays(start,i));
+  const all={};let total=0;
+  for(const dt of dates){const d=byDate[iso(dt)];if(!d)continue;total+=totalOf(d);
+    for(const [k,v] of Object.entries(d.appMinutes||{}))all[k]=(all[k]||0)+num(v)}
+  $("total").innerHTML=fmt(total)+"<small>active this week</small>";
+  const color=colorsFor(all), tIso=todayIso();
+  const runsBy=Object.fromEntries(dates.map(dt=>[iso(dt),cleanRuns(byDate[iso(dt)])]));
+  const flat=Object.values(runsBy).flat();
+  let a=flat.length?Math.floor(Math.min(...flat.map(r=>r[0]))/60)*60:8*60, b=flat.length?Math.ceil(Math.max(...flat.map(r=>r[1]))/60)*60:20*60;
+  if(b-a<360)b=a+360;
+  const wk=document.createElement("div");wk.className="wk";
+  const axis=document.createElement("div");axis.className="axis";
+  const stepH=(b-a)>720?6:3;
+  for(let m=a;m<=b;m+=stepH*60){const t=document.createElement("span");t.style.left=((m-a)/(b-a)*100)+"%";t.textContent=hm(m);axis.append(t)}
+  wk.append(document.createElement("div"),axis,document.createElement("div"));
+  for(const dt of dates){
+    const k=iso(dt), lab=document.createElement("button");lab.type="button";lab.className="wlab"+(k===tIso?" is-today":"");
+    lab.textContent=dt.toLocaleDateString(undefined,{weekday:"short",day:"numeric"});
+    const st=strip(runsBy[k],a,b,color,"wstrip",byDate[k]&&byDate[k].icons||{});
+    const tot=document.createElement("span");tot.className="wtot";tot.textContent=byDate[k]?fmt(totalOf(byDate[k])):"";
+    const open=()=>{state.view="day";state.day=dt;go()};
+    lab.onclick=open;st.onclick=e=>{if(!e.target.closest("i"))open()};
+    if(dt>logicalToday()){lab.style.opacity=st.style.opacity=".35";lab.disabled=true}
+    wk.append(lab,st,tot);
+  }
+  $("cal").replaceChildren(wk);
+}
+
+// ---------- tooltip ----------
+const tip=$("tip");
+
+function showTip(e){
+  const t=e.target.closest&&e.target.closest("[data-tip]");
+  if(!t){tip.style.display="none";return}
+  tip.textContent=t.dataset.tip;tip.style.display="block";
+  tip.style.left=Math.max(8,Math.min(e.clientX-tip.offsetWidth/2,innerWidth-tip.offsetWidth-8))+"px";tip.style.top=(e.clientY-38)+"px";
+}
+document.addEventListener("mousemove",showTip);
+document.addEventListener("click",showTip);
+
+// ---------- Google Drive ----------
+// Find a value in a tool result whatever its wrapping (payload, structured, text or base64 blocks).
+function findIn(v,test,depth=0){
+  if(v==null||depth>6)return null;
+  if(typeof v==="string"){
+    for(const s of [v,(()=>{try{return atob(v.replace(/\s/g,""))}catch(e){return null}})()]){
+      if(!s)continue; try{const r=findIn(JSON.parse(s),test,depth+1); if(r)return r}catch(e){}
+    }
+    return null;
+  }
+  if(typeof v!=="object")return null;
+  if(test(v))return v;
+  for(const k of Object.keys(v)){const r=findIn(v[k],test,depth+1); if(r)return r}
+  return null;
+}
+let mcp=null;
+const cache={}; // date -> summary or null; finished past days are kept, today is always re-read
+let updatedAt=null, devices=0; // newest write across all PCs for today, and how many PCs wrote today
+// One file per PC per day: daisey-YYYY-MM-DD-PCNAME.json. Older builds wrote daisey-YYYY-MM-DD.json (no PC);
+// that one is only used when no per-PC file exists for the day, so a PC that just updated isn't counted twice.
+const FILE_RE=/^daisey-(\d{4}-\d{2}-\d{2})(?:-(.+))?\.json$/;
+async function fetchDays(dates){
+  const t=todayIso(), need=dates.filter(d=>d===t||!(d in cache));
+  if(!need.length)return;
+  if(!mcp) mcp=await window.claude?.use?.("mcp");
+  if(!mcp) throw {code:"no_mcp"};
+  const q="("+need.map(d=>`title contains 'daisey-${d}'`).join(" or ")+") and trashed = false";
+  const r=await mcp.callTool("Google Drive","search_files",{query:q,pageSize:100,excludeContentSnippets:true},{cache:false});
+  const files=(findIn([r.payload,r.structuredContent,r.content],o=>Array.isArray(o.files))||{files:[]}).files;
+  const byDay={};
+  for(const f of files){const m=FILE_RE.exec(f.title||f.name||"");if(m&&need.includes(m[1]))(byDay[m[1]]??=[]).push({f,pc:m[2]||null})}
+  await Promise.all(need.map(async d=>{
+    let list=byDay[d]||[];
+    if(list.some(x=>x.pc))list=list.filter(x=>x.pc);
+    const parts=(await Promise.all(list.map(async({f})=>{
+      const c=await mcp.callTool("Google Drive","download_file_content",{fileId:f.id},{cache:false});
+      const s=findIn([c.payload,c.structuredContent,c.content],o=>o.date===d);
+      if(s&&!s.updatedAt)s.updatedAt=Date.parse(f.modifiedTime)||0;
+      return s;
+    }))).filter(Boolean);
+    cache[d]=parts.length?mergeDays(parts):null;
+    if(d===t){updatedAt=parts.length?Math.max(...parts.map(p=>p.updatedAt||0)):null;devices=parts.length}
+  }));
+}
+// Several PCs on one day: add the minutes up; on the timeline, a minute used on two PCs goes to the one that started first.
+function mergeDays(parts){
+  if(parts.length===1)return parts[0];
+  const add=(a,b)=>{for(const[k,v]of Object.entries(b||{}))a[k]=(a[k]||0)+v;return a};
+  const out={date:parts[0].date,dayStartMinute:parts[0].dayStartMinute,activeMinutes:0,appMinutes:{},siteMinutes:{},detailMinutes:{},
+    timeline:[],hourlyMinutes:Array(24).fill(0),audioMinutesByProcess:{},icons:{}};
+  for(const p of parts){
+    out.activeMinutes+=p.activeMinutes||0;
+    add(out.appMinutes,p.appMinutes);add(out.siteMinutes,p.siteMinutes);add(out.audioMinutesByProcess,p.audioMinutesByProcess);
+    for(const[app,d]of Object.entries(p.detailMinutes||{}))add(out.detailMinutes[app]??={},d);
+    (p.hourlyMinutes||[]).forEach((v,i)=>out.hourlyMinutes[i]+=v);
+    Object.assign(out.icons,p.icons||{});
+  }
+  const runs=parts.flatMap(p=>p.timeline||[]).map(r=>[...r]).sort((a,b)=>a[0]-b[0]);
+  let end=-1;
+  for(const r of runs){if(r[0]<end)r[0]=end;if(r[1]>r[0]){out.timeline.push(r);end=r[1]}}
+  return out;
+}
+
+// ---------- navigation ----------
+const state={view:"day",day:logicalToday()};
+let busy=false;
+async function go(){
+  const t=logicalToday();
+  if(state.day>t)state.day=t;
+  document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.view===state.view));
+  let dates;
+  if(state.view==="day"){
+    dates=[iso(state.day)];
+    $("date").textContent=iso(state.day)===iso(t)?"Today":state.day.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"});
+    $("next").disabled=state.day>=t;
+  }else{
+    const s=weekStart(state.day), e=addDays(s,6);
+    dates=[...Array(7)].map((_,i)=>iso(addDays(s,i)));
+    $("date").textContent=`${s.toLocaleDateString(undefined,{day:"numeric",month:"short"})} – ${e.toLocaleDateString(undefined,{day:"numeric",month:"short"})}`;
+    $("next").disabled=e>=t;
+  }
+  const paint=()=>state.view==="day"?renderDay(cache[dates[0]],dates[0]===todayIso()):renderWeek(weekStart(state.day),cache);
+  if(dates.every(d=>d in cache))paint(); else $("cal").innerHTML='<p class="empty">Loading…</p>';
+  if(busy)return; busy=true;
+  try{
+    await fetchDays(dates);
+    paint();
+    const at=updatedAt&&new Date(updatedAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+    $("note").textContent=at?"Updated "+at+(devices>1?` · ${devices} PCs`:""):"";
+    // Today but nothing new for 10 min on any PC: the tracker is off, not you idle (it writes every minute even when you're away).
+    const stale=state.view==="day"&&iso(state.day)===todayIso()&&updatedAt&&Date.now()-updatedAt>10*60*1000;
+    $("stale").hidden=!stale;
+    if(stale)$("stale").textContent=`Tracker isn't running. Last data ${at}.`;
+  }catch(e){
+    const m={no_mcp:"Google Drive isn't available here.",server_not_connected:"Connect Google Drive in claude.ai settings.",
+      needs_reauth:"Reconnect Google Drive in claude.ai settings.",not_granted:"Allow Google Drive for this page to see your data."};
+    $("note").textContent=m[e&&e.code]||"Couldn't reach Google Drive. Retrying in a minute.";
+  }finally{busy=false}
+}
+const step=n=>{state.day=addDays(state.day,state.view==="day"?n:7*n);go()};
+$("prev").onclick=()=>step(-1); $("next").onclick=()=>step(1);
+document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{state.view=b.dataset.view;go()});
+document.addEventListener("keydown",e=>{if(e.key==="ArrowLeft")step(-1);if(e.key==="ArrowRight"&&!$("next").disabled)step(1)});
+go();
+setInterval(()=>{if(!document.hidden)go()},60*1000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)go()});
+</script>

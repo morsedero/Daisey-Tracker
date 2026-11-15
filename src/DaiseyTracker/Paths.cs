@@ -52,6 +52,6 @@ static class Paths
         var line = $"{DateTime.Now:s} v{Updater.Current.ToString(3)} {what}: {ex}\n";
         try { File.AppendAllText(ErrorLog, line); } catch { }
         // Copy to the synced Drive folder so problems can be read remotely.
-        try { if (SyncDir() is { } d) { Directory.CreateDirectory(d); File.AppendAllText(Path.Combine(d, "daisey-error.log"), line); } } catch { }
+        try { if (SyncDir() is { } d) { Directory.CreateDirectory(d); File.AppendAllText(Path.Combine(d, $"daisey-error-{Summary.Device}.log"), line); } } catch { }
     }
 }
