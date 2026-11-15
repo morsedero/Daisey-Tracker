@@ -26,11 +26,12 @@ Heartbeat merge: same data as the stream's last event and gap <= 3s extends it, 
 
 ## Daily summary
 
-`summary\YYYY-MM-DD.json` in the data folder (copied to Drive). Written every 1 min, at midnight, on quit and via *Export today*. No window titles: browser time is grouped by a site name guessed from the end of the tab title ("... - YouTube" -> YouTube), else "Other". `detailMinutes` is the project/file open inside each app, guessed from "item - App" titles (top 6 per app, name only).
+`summary\YYYY-MM-DD.json` in the data folder (copied to Drive). A day runs 06:00–05:59. Written every 1 min, at day end (06:00), on quit and via *Export today*. No window titles: browser time is grouped by a site name guessed from the end of the tab title ("... - YouTube" -> YouTube), else "Other". `detailMinutes` is the project/file open inside each app, guessed from "item - App" titles (top 6 per app, name only).
 
 ```json
 {
   "date": "2026-11-15",
+  "dayStartMinute": 360,
   "activeMinutes": 312.4,
   "appMinutes": { "chrome.exe": 140.2, "Code.exe": 98.0 },
   "siteMinutes": { "YouTube": 40.0, "GitHub": 25.5, "Other": 30.1 },

@@ -13,7 +13,7 @@ sealed class TrayApp : ApplicationContext
     readonly ToolStripMenuItem _auto = new("Start with Windows");
     readonly Timer _midnight = new() { Interval = 30_000 };
     readonly Timer _update = new() { Interval = 60_000 };
-    DateTime _day = DateTime.Today;
+    DateTime _day = Summary.Today;
     DateTime _lastExport = DateTime.MinValue; // export soon after start
     bool _updating;
     bool _closed;
@@ -48,19 +48,20 @@ sealed class TrayApp : ApplicationContext
         // Day rollover (also catches wake-from-sleep past midnight): write the finished day.
         _midnight.Tick += (_, _) =>
         {
-            if (DateTime.Today != _day)
+            if (Summary.Today != _day)
             {
                 WriteSummary(_day, quiet: true);
-                _day = DateTime.Today;
+                _day = Summary.Today;
             }
             // Keep the cloud dashboard fresh: export today every 1 min.
             if (DateTime.Now - _lastExport >= TimeSpan.FromMinutes(1))
             {
                 _lastExport = DateTime.Now;
-                WriteSummary(DateTime.Today, quiet: true);
+                WriteSummary(Summary.Today, quiet: true);
             }
         };
         _midnight.Start();
+        WriteSummary(_day.AddDays(-1), quiet: true); // yesterday may have missed its final write (PC off at day end)
 
         // Auto-update: check every minute (cheap conditional request).
         _update.Tick += async (_, _) => { _update.Interval = 60_000; await CheckUpdate(manual: false); };
@@ -107,7 +108,7 @@ sealed class TrayApp : ApplicationContext
         _tray.Text = _tracker.Paused ? Title + " (paused)" : Title;
     }
 
-    void Export() => WriteSummary(DateTime.Today, quiet: false);
+    void Export() => WriteSummary(Summary.Today, quiet: false);
 
     void WriteSummary(DateTime day, bool quiet)
     {
@@ -130,7 +131,7 @@ sealed class TrayApp : ApplicationContext
         _tracker.Pause();
         _update.Stop();
         _midnight.Stop();
-        WriteSummary(DateTime.Today, quiet: true);
+        WriteSummary(Summary.Today, quiet: true);
         _dash.Dispose();
         _tray.Visible = false;
         _tray.Dispose();

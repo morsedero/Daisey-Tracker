@@ -53,7 +53,7 @@ sealed class Dashboard : IDisposable
         if (ctx.Request.Url!.AbsolutePath == "/api/summary")
         {
             var q = ctx.Request.QueryString["date"];
-            var day = DateTime.TryParse(q, out var d) ? d : DateTime.Today;
+            var day = DateTime.TryParse(q, out var d) ? d : Summary.Today;
             body = JsonSerializer.Serialize(Summary.Compute(_store, day));
             type = "application/json";
         }

@@ -11,6 +11,10 @@ static class Summary
 
     static long Ms(DateTime local) => new DateTimeOffset(local).ToUnixTimeMilliseconds();
 
+    /// <summary>A day runs 06:00 to 05:59 the next morning, so late-night work belongs to the day it started.</summary>
+    public const int DayStartHour = 6;
+    public static DateTime Today => DateTime.Now.AddHours(-DayStartHour).Date;
+
     public static string Write(Store store, DateTime day)
     {
         day = day.Date;
@@ -44,7 +48,7 @@ static class Summary
     public static object Compute(Store store, DateTime day)
     {
         day = day.Date;
-        long start = Ms(day), end = Ms(day.AddDays(1)); // local midnight to local midnight
+        long start = Ms(day.AddHours(DayStartHour)), end = Ms(day.AddDays(1).AddHours(DayStartHour)); // 06:00 to 06:00
 
         var apps = new Dictionary<string, double>();
         var hourly = new double[24];
@@ -127,6 +131,7 @@ static class Summary
         return new
         {
             date = day.ToString("yyyy-MM-dd"),
+            dayStartMinute = DayStartHour * 60, // timeline/hourly minutes count from this local time
             activeMinutes = Math.Round(apps.Values.Sum(), 2),
             appMinutes = Sorted(apps),
             siteMinutes = Sorted(sites),
