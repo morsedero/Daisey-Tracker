@@ -59,6 +59,7 @@ sealed class TrayApp : ApplicationContext
                 _day = Summary.Today;
                 Prune();
             }
+            AutoConnect(); // Daisey couldn't be reached last time: try again (every 10 min)
             // Keep the cloud dashboard fresh: export today every 1 min.
             if (DateTime.Now - _lastExport >= TimeSpan.FromMinutes(1))
             {
@@ -70,7 +71,7 @@ sealed class TrayApp : ApplicationContext
         WriteSummary(_day.AddDays(-1), quiet: true, final: true); // yesterday may have missed its final write (PC off at day end)
         Prune();
         // Not linked yet: open Daisey's Approve page right away, once per PC (also after the update that brings this).
-        if (!DaiseyLink.Linked && !DaiseyLink.Asked) StartConnect();
+        AutoConnect();
 
         // Auto-update: check every minute (cheap conditional request).
         _update.Tick += async (_, _) => { _update.Interval = 60_000; await CheckUpdate(manual: false); };
@@ -154,6 +155,15 @@ sealed class TrayApp : ApplicationContext
         _link.Checked = DaiseyLink.Linked;
     }
 
+    DateTime _autoTried = DateTime.MinValue;
+    /// <summary>Offers the link once per PC; until Daisey answers, quietly retries every 10 min.</summary>
+    void AutoConnect()
+    {
+        if (DaiseyLink.Linked || DaiseyLink.Asked || _connecting is not null || DateTime.Now - _autoTried < TimeSpan.FromMinutes(10)) return;
+        _autoTried = DateTime.Now;
+        StartConnect(quiet: true);
+    }
+
     void LinkClicked()
     {
         if (_connecting is not null) { _connecting.Cancel(); return; }
@@ -164,7 +174,7 @@ sealed class TrayApp : ApplicationContext
         PaintLink();
     }
 
-    async void StartConnect()
+    async void StartConnect(bool quiet = false)
     {
         if (_connecting is not null) return;
         _connecting = new CancellationTokenSource();
@@ -181,7 +191,7 @@ sealed class TrayApp : ApplicationContext
         catch (Exception ex)
         {
             Paths.LogError("daisey connect", ex);
-            _tray.ShowBalloonTip(4000, Title, "Couldn't reach Daisey. Try Connect to Daisey again later.", ToolTipIcon.Warning);
+            if (!quiet) _tray.ShowBalloonTip(4000, Title, "Couldn't reach Daisey. Try Connect to Daisey again later.", ToolTipIcon.Warning);
         }
         finally { _connecting.Dispose(); _connecting = null; if (!_closed) PaintLink(); }
     }
