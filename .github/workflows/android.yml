@@ -43,3 +43,9 @@ jobs:
         run: |
           gh release view android-latest >/dev/null 2>&1 || gh release create android-latest --latest=false --title "Android tracker" --notes "The phone tracker. Install DaiseyTracker.apk, allow Usage access, Connect."
           gh release upload android-latest DaiseyTracker.apk --clobber
+      - name: Test release (work branches; pre-release, so never Latest and never seen by the Windows updater)
+        if: github.event_name == 'push' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release view android-test >/dev/null 2>&1 || gh release create android-test --prerelease --latest=false --target "$GITHUB_SHA" --title "Android tracker (test build)" --notes "Test builds from work branches. Install DaiseyTracker.apk, allow Usage access, Connect."
+          gh release upload android-test DaiseyTracker.apk --clobber
