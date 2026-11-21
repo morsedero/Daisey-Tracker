@@ -2,6 +2,7 @@ name: build
 on:
   push:
     branches: [main, "claude/**"]
+    paths-ignore: ["android/**"]
   workflow_dispatch:
 permissions:
   contents: write
